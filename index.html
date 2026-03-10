@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>枝豆ゲーム</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; touch-action:manipulation; }
+
+body {
+  background: #fff;
+  width: 100vw; height: 100dvh;
+  overflow: hidden;
+  font-family: 'Hiragino Maru Gothic ProN','BIZ UDPGothic',sans-serif;
+  display: flex; align-items: center; justify-content: center;
+  user-select: none;
+}
+
+#game {
+  width:100%; height:100%;
+  position: relative;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+
+#pod-area {
+  display: flex; flex-direction: column;
+  align-items: center;
+}
+
+/* [豆たち] [鞘] [豆たち] */
+#game-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+#beans-left {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 6px;
+  position: relative; z-index: 5;
+}
+#beans-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  position: relative; z-index: 5;
+}
+
+.bean-char {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.bean-char canvas {
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 3px 10px rgba(60,120,20,0.30);
+}
+
+/* 吹き出し */
+.speech-bubble {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.75);
+  background: #fff;
+  border: 2.5px solid #7db833;
+  border-radius: 14px;
+  padding: 5px 10px;
+  font-size: 12px; font-weight: bold;
+  color: #4a7a10;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events: none;
+  z-index: 30;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+}
+.speech-bubble::after {
+  content:''; position:absolute; top:100%; left:50%;
+  transform:translateX(-50%);
+  border:5px solid transparent; border-top-color:#7db833;
+}
+.speech-bubble::before {
+  content:''; position:absolute; top:calc(100% - 2px); left:50%;
+  transform:translateX(-50%);
+  border:5px solid transparent; border-top-color:#fff;
+  z-index:1;
+}
+.speech-bubble.show {
+  opacity:1;
+  transform:translateX(-50%) scale(1);
+}
+
+/* 鞘 */
+#pod-wrap {
+  position: relative;
+  z-index: 10;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.1s;
+}
+#pod-wrap:active { transform: scale(0.96); }
+
+#pod-img {
+  display: block;
+  height: auto;
+  filter: drop-shadow(0 6px 20px rgba(80,140,30,0.22));
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* 長押しリング */
+#press-ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 56px; height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: #5c9c2e;
+  opacity: 0;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+#press-ring.running {
+  opacity: 1;
+  animation: ring-fill 0.6s linear forwards;
+}
+@keyframes ring-fill {
+  0%   { border-color:transparent; border-top-color:#5c9c2e;    transform:rotate(-90deg); }
+  25%  { border-right-color:#5c9c2e;  transform:rotate(0deg);   }
+  50%  { border-bottom-color:#5c9c2e; transform:rotate(90deg);  }
+  75%  { border-left-color:#5c9c2e;   transform:rotate(180deg); }
+  100% { border-color:#5c9c2e;        transform:rotate(270deg); }
+}
+
+/* スワイプヒント */
+#swipe-hint {
+  margin-top: 22px;
+  font-size: 15px; font-weight: bold;
+  color: #5c9c2e;
+  text-align: center;
+  opacity: 0; transition: opacity 0.4s;
+  pointer-events: none;
+}
+#swipe-hint.show { opacity:1; animation: sway 1.8s ease-in-out infinite; }
+@keyframes sway {
+  0%,100% { transform:translateX(0); }
+  30%     { transform:translateX(-10px); }
+  70%     { transform:translateX(10px); }
+}
+
+/* 豆が飛ぶ */
+@keyframes fly-out {
+  0%   { transform:translate(0,0) rotate(0deg) scale(1); opacity:1; }
+  100% { transform:translate(var(--fx),var(--fy)) rotate(var(--fr)) scale(0.2); opacity:0; }
+}
+
+/* 鞘シェイク */
+@keyframes pod-shake {
+  0%,100% { transform:rotate(0deg); }
+  20%     { transform:rotate(-5deg); }
+  40%     { transform:rotate(5deg);  }
+  60%     { transform:rotate(-3deg); }
+  80%     { transform:rotate(3deg);  }
+}
+.pod-shake { animation: pod-shake 0.4s ease; }
+
+/* 鞘スライド */
+@keyframes out-left  { to { transform:translateX(-130vw) rotate(-20deg); opacity:0; } }
+@keyframes out-right { to { transform:translateX( 130vw) rotate( 20deg); opacity:0; } }
+@keyframes in-right  { from { transform:translateX( 130vw); opacity:0; } to { transform:none; opacity:1; } }
+@keyframes in-left   { from { transform:translateX(-130vw); opacity:0; } to { transform:none; opacity:1; } }
+
+#pod-area.out-left  { animation: out-left  0.5s  ease-in                      forwards; }
+#pod-area.out-right { animation: out-right 0.5s  ease-in                      forwards; }
+#pod-area.in-right  { animation: in-right  0.52s cubic-bezier(0.22,1,0.36,1) forwards; }
+#pod-area.in-left   { animation: in-left   0.52s cubic-bezier(0.22,1,0.36,1) forwards; }
+
+/* カウンター */
+#counter {
+  position: fixed; top:20px; right:20px;
+  font-size: 13px; color: #999;
+  text-align: right; line-height: 1.6;
+}
+
+/* クリア */
+#cleared {
+  position: fixed; inset: 0;
+  background: rgba(255,255,255,0.96);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 100;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.6s;
+}
+#cleared.show { opacity:1; pointer-events:all; }
+.cl-icon  { font-size:72px; margin-bottom:10px; }
+.cl-title { font-size:30px; font-weight:bold; color:#5c9c2e; margin-bottom:8px; }
+.cl-sub   { font-size:15px; color:#aaa; margin-bottom:40px; }
+#retry-btn {
+  background:#5c9c2e; color:#fff;
+  border:none; border-radius:50px;
+  padding:14px 44px; font-size:20px; font-weight:bold;
+  font-family:inherit; cursor:pointer;
+  box-shadow: 0 4px 16px rgba(92,156,46,0.35);
+}
+#retry-btn:active { transform:scale(0.94); }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <div id="counter"></div>
+
+  <div id="pod-area">
+    <div id="game-row">
+      <div id="beans-left"></div>
+      <div id="pod-wrap">
+        <img id="pod-img" src="saya.PNG" alt="">
+        <div id="press-ring"></div>
+      </div>
+      <div id="beans-right"></div>
+    </div>
+    <div id="swipe-hint">← スワイプして次の鞘へ →</div>
+  </div>
+
+  <div id="cleared">
+    <div class="cl-icon">🌿</div>
+    <div class="cl-title">全クリア！</div>
+    <div class="cl-sub">全部の枝豆がとびだした！</div>
+    <button id="retry-btn" onclick="resetGame()">もう一度</button>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// 顔画像 — face/ フォルダの PNG を全部読み込む
+// ================================================================
+const FACE_FILES = [
+  'face/IMG_7819.PNG',
+  'face/IMG_7820.PNG',
+  'face/IMG_7822.PNG',
+  'face/IMG_7823.PNG',
+  'face/IMG_7824.PNG',
+  'face/IMG_7825.PNG',
+  'face/IMG_7826.PNG',
+  'face/IMG_7827.PNG',
+  'face/IMG_7828.PNG',
+  'face/IMG_7829.PNG',
+];
+
+const faceImages = new Array(FACE_FILES.length).fill(null);
+
+FACE_FILES.forEach((src, i) => {
+  const img = new Image();
+  img.onload = () => {
+    faceImages[i] = img;
+    refreshAllBeanFaces(); // 読み込み完了したら既存の豆を再描画
+  };
+  img.src = src;
+});
+
+function drawFaceOnCanvas(canvas, fi) {
+  const SZ  = canvas.width;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, SZ, SZ);
+
+  const img = faceImages[fi];
+  if (img) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(SZ/2, SZ/2, SZ/2 - 1, 0, Math.PI * 2);
+    ctx.clip();
+    // 中央正方形でクロップして円に収める
+    const W = img.naturalWidth, H = img.naturalHeight;
+    const s  = Math.min(W, H);
+    const sx = (W - s) / 2, sy = (H - s) / 2;
+    ctx.drawImage(img, sx, sy, s, s, 0, 0, SZ, SZ);
+    ctx.restore();
+  } else {
+    // 未ロード時フォールバック（緑丸）
+    const g = ctx.createRadialGradient(SZ*.38,SZ*.33,SZ*.08, SZ/2,SZ/2,SZ/2);
+    g.addColorStop(0,'#c8e86a'); g.addColorStop(1,'#5a9018');
+    ctx.beginPath(); ctx.arc(SZ/2,SZ/2,SZ/2-1,0,Math.PI*2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+function refreshAllBeanFaces() {
+  document.querySelectorAll('.bean-char canvas').forEach(c => {
+    const fi = parseInt(c.dataset.fi, 10);
+    if (!isNaN(fi)) drawFaceOnCanvas(c, fi);
+  });
+}
+
+// ================================================================
+// Web Audio API — 効果音
+// ================================================================
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+// むにっ（鞘を押す）
+function sfxMunyu() {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(130, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(58, audioCtx.currentTime + 0.20);
+  g.gain.setValueAtTime(0.38, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.24);
+  o.start(); o.stop(audioCtx.currentTime + 0.24);
+}
+
+// ぷにゅっ（豆が出る）
+function sfxPunyu() {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(300, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(540, audioCtx.currentTime + 0.07);
+  o.frequency.exponentialRampToValueAtTime(240, audioCtx.currentTime + 0.22);
+  g.gain.setValueAtTime(0.28, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.26);
+  o.start(); o.stop(audioCtx.currentTime + 0.26);
+}
+
+// ピューン（豆を飛ばす）
+function sfxPyun() {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(180, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(960, audioCtx.currentTime + 0.30);
+  g.gain.setValueAtTime(0.18, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.34);
+  o.start(); o.stop(audioCtx.currentTime + 0.34);
+}
+
+// シュッ（鞘スワイプ）
+function sfxShu() {
+  if (!audioCtx) return;
+  const sr  = audioCtx.sampleRate;
+  const len = Math.floor(sr * 0.14);
+  const buf = audioCtx.createBuffer(1, len, sr);
+  const d   = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * (1 - i/len);
+  const src = audioCtx.createBufferSource();
+  const flt = audioCtx.createBiquadFilter();
+  const g   = audioCtx.createGain();
+  src.buffer = buf; flt.type = 'highpass'; flt.frequency.value = 2500;
+  src.connect(flt); flt.connect(g); g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.34, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.14);
+  src.start();
+}
+
+// ファンファーレ（全クリア）
+function sfxFanfare() {
+  if (!audioCtx) return;
+  [
+    [523,0.00],[659,0.12],[784,0.24],
+    [1047,0.36],[1319,0.50],[1047,0.64],[1319,0.74],[1047,0.82]
+  ].forEach(([f, t]) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'triangle'; o.frequency.value = f;
+    const s = audioCtx.currentTime + t;
+    g.gain.setValueAtTime(0, s);
+    g.gain.linearRampToValueAtTime(0.26, s + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.01, s + 0.40);
+    o.start(s); o.stop(s + 0.42);
+  });
+}
+
+// ================================================================
+// セリフ
+// ================================================================
+const SPEECHES_PRESS = [
+  "なんか用？","まだ出たくない…","ちょっと眩しい","やあ！","おじゃまします",
+  "こんにちは〜","あれ、今何時？","ひょっこり","ここ、いい感じやね","むぎゅ"
+];
+const SPEECHES_FLY = [
+  "うわーっ！","たたくなや！","さらばじゃ〜！","とんでくで〜","あかんあかん！",
+  "きゅーっ！","おわ〜！","ちょっ待って！","まだ食べ頃やないのに！","ひえ〜！"
+];
+
+// ================================================================
+// ゲーム状態
+// ================================================================
+const TOTAL_PODS   = 5;
+let podsDone       = 0;
+let podSizes       = [];
+let currentPodSize = 0;
+let beanItems      = [];  // { el, side }
+let beansFlown     = 0;
+let nextBeanIndex  = 0;   // 次に出す豆のインデックス
+let gamePhase      = 'idle';
+//   'idle'         : 長押し待ち（次の豆がある）
+//   'showing'      : 1個の豆が出た状態（タップ待ち）
+//   'flying'       : 豆が飛んでいる最中（入力無視）
+//   'swipeable'    : 全豆飛んだ後のスワイプ待ち
+//   'transitioning': 鞘のスライドアニメ中
+let pressTimer     = null;
+
+// ================================================================
+// 初期化
+// ================================================================
+function resetGame() {
+  document.getElementById('cleared').classList.remove('show');
+  podsDone = 0;
+  podSizes = Array.from({ length: TOTAL_PODS }, () => Math.random() < 0.5 ? 3 : 4);
+  loadPod(true);
+}
+
+function loadPod(isFirst) {
+  gamePhase     = 'idle';
+  beansFlown    = 0;
+  nextBeanIndex = 0;
+  beanItems     = [];
+  currentPodSize = podSizes[podsDone];
+  renderScene();
+  updateCounter();
+
+  if (!isFirst) {
+    const area = document.getElementById('pod-area');
+    area.classList.add('in-right');
+    area.addEventListener('animationend', () => area.classList.remove('in-right'), { once:true });
+  }
+}
+
+// ================================================================
+// シーン描画
+// ================================================================
+function renderScene() {
+  const vw         = window.innerWidth;
+  const podW       = Math.min(200, Math.floor(vw * 0.46));
+  const leftCount  = Math.floor(currentPodSize / 2);  // 3→1, 4→2
+  const rightCount = currentPodSize - leftCount;       // 3→2, 4→2
+  const sideW      = Math.floor((vw - podW - 40) / 2);
+  const beanSz     = Math.min(54, Math.floor(sideW / (Math.max(leftCount, rightCount) + 0.5)));
+
+  // 鞘画像
+  document.getElementById('pod-img').style.width = podW + 'px';
+
+  // タッチイベント
+  const podWrap = document.getElementById('pod-wrap');
+  podWrap.ontouchstart = onPodTouchStart;
+  podWrap.onmousedown  = onPodMouseDown;
+
+  // 豆エリアをリセット
+  const leftEl  = document.getElementById('beans-left');
+  const rightEl = document.getElementById('beans-right');
+  leftEl.innerHTML = rightEl.innerHTML = '';
+  leftEl.style.gap = rightEl.style.gap = '6px';
+
+  // 顔インデックスをシャッフルして割り当て
+  const shuffled = [...Array(FACE_FILES.length).keys()].sort(() => Math.random() - 0.5);
+  let fi = 0;
+
+  // 左側（row-reverse: DOM[0] が pod 寄り）
+  for (let i = 0; i < leftCount; i++) {
+    const item = makeBeanChar(beanSz, shuffled[fi++ % shuffled.length], 'left');
+    leftEl.appendChild(item.el);
+    beanItems.push(item);
+  }
+  // 右側（row: DOM[0] が pod 寄り）
+  for (let i = 0; i < rightCount; i++) {
+    const item = makeBeanChar(beanSz, shuffled[fi++ % shuffled.length], 'right');
+    rightEl.appendChild(item.el);
+    beanItems.push(item);
+  }
+
+  document.getElementById('swipe-hint').classList.remove('show');
+}
+
+// ================================================================
+// 豆キャラ生成
+// ================================================================
+function makeBeanChar(size, faceIdx, side) {
+  const wrap = document.createElement('div');
+  wrap.className = 'bean-char';
+  // 初期: pod側に押し込まれた状態（z-index:10の鞘の裏に隠れる）
+  const hideX = (size + 10) * (side === 'left' ? 1 : -1);
+  wrap.style.cssText = `opacity:0; transform:translateX(${hideX}px) scale(0.3); pointer-events:none;`;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'speech-bubble';
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size * 2;
+  canvas.style.cssText = `width:${size}px; height:${size}px;`;
+  canvas.dataset.fi = faceIdx;
+  drawFaceOnCanvas(canvas, faceIdx);
+
+  wrap.appendChild(bubble);
+  wrap.appendChild(canvas);
+
+  // タップで飛ばす
+  const fly = (e) => { e?.preventDefault(); e?.stopPropagation(); tapBean(wrap, side); };
+  wrap.addEventListener('touchend', fly, { passive:false });
+  wrap.addEventListener('click', fly);
+
+  return { el:wrap, side };
+}
+
+// ================================================================
+// 鞘のタッチ処理
+// ================================================================
+function onPodTouchStart(e) {
+  e.preventDefault();
+  initAudio();
+  const t = e.touches[0];
+  const sx = t.clientX, sy = t.clientY;
+
+  if (gamePhase === 'swipeable') {
+    document.ontouchend = (ev) => {
+      document.ontouchend = null;
+      const tt = ev.changedTouches[0];
+      const dx = tt.clientX - sx, dy = tt.clientY - sy;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) launchPod(dx > 0 ? 'right' : 'left');
+    };
+    return;
+  }
+  beginPress();
+  document.ontouchend = () => { endPress(); document.ontouchend = null; };
+}
+
+function onPodMouseDown(e) {
+  initAudio();
+  const sx = e.clientX;
+  if (gamePhase === 'swipeable') {
+    document.onmouseup = (ev) => {
+      document.onmouseup = null;
+      const dx = ev.clientX - sx;
+      if (Math.abs(dx) > 50) launchPod(dx > 0 ? 'right' : 'left');
+    };
+    return;
+  }
+  beginPress();
+  document.onmouseup = () => { endPress(); document.onmouseup = null; };
+}
+
+function beginPress() {
+  if (gamePhase !== 'idle') return;  // idle のときだけ長押し受付
+  sfxMunyu();
+  const ring = document.getElementById('press-ring');
+  ring.classList.remove('running');
+  void ring.offsetWidth; // reflow でリセット
+  ring.classList.add('running');
+  pressTimer = setTimeout(peekNextBean, 600);
+}
+
+function endPress() {
+  clearTimeout(pressTimer);
+  document.getElementById('press-ring').classList.remove('running');
+}
+
+// ================================================================
+// 豆を1個だけ横からひょっこり出す ← 変更点
+// ================================================================
+function peekNextBean() {
+  if (gamePhase !== 'idle') return;
+  if (nextBeanIndex >= currentPodSize) return;
+
+  gamePhase = 'showing';
+  document.getElementById('press-ring').classList.remove('running');
+
+  // 鞘シェイク
+  const pw = document.getElementById('pod-wrap');
+  pw.classList.add('pod-shake');
+  setTimeout(() => pw.classList.remove('pod-shake'), 400);
+
+  sfxPunyu();
+
+  // nextBeanIndex の豆だけ出す
+  const { el } = beanItems[nextBeanIndex];
+  el.style.transition = 'transform 0.46s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease';
+  el.style.opacity    = '1';
+  el.style.transform  = 'translateX(0) scale(1)';
+  el.style.pointerEvents = 'auto';
+
+  // セリフ
+  const bubble = el.querySelector('.speech-bubble');
+  bubble.textContent = SPEECHES_PRESS[Math.floor(Math.random() * SPEECHES_PRESS.length)];
+  setTimeout(() => {
+    bubble.classList.add('show');
+    setTimeout(() => bubble.classList.remove('show'), 2200);
+  }, 150);
+}
+
+// ================================================================
+// 豆をタップ → 飛んでいく ← 変更点
+// ================================================================
+function tapBean(el, side) {
+  if (gamePhase !== 'showing') return;   // 出ている1個のみ受付
+  if (el.dataset.flown === '1') return;
+  el.dataset.flown = '1';
+  el.style.pointerEvents = 'none';
+
+  gamePhase = 'flying';  // 飛翔中は長押し・タップを無視
+
+  // セリフ（飛びながら）
+  const bubble = el.querySelector('.speech-bubble');
+  bubble.classList.remove('show');
+  bubble.textContent = SPEECHES_FLY[Math.floor(Math.random() * SPEECHES_FLY.length)];
+  bubble.classList.add('show');
+
+  sfxPyun();
+
+  // 出てきた方向へ飛ぶ + 上下ランダム±50°
+  const base   = side === 'left' ? 180 : 0;
+  const spread = Math.random() * 100 - 50;
+  const rad    = (base + spread) * Math.PI / 180;
+  const dist   = 650 + Math.random() * 300;
+  const fx     = Math.cos(rad) * dist;
+  const fy     = Math.sin(rad) * dist - 180;
+  const fr     = (Math.random() < 0.5 ? 1 : -1) * (Math.random() * 540 + 270);
+
+  el.style.transition = 'none';
+  el.style.setProperty('--fx', fx + 'px');
+  el.style.setProperty('--fy', fy + 'px');
+  el.style.setProperty('--fr', fr + 'deg');
+  el.style.animation = 'fly-out 0.7s cubic-bezier(0.25,0.46,0.45,0.94) forwards';
+
+  setTimeout(() => {
+    el.style.visibility = 'hidden';
+    beansFlown++;
+    nextBeanIndex++;  // 次の豆へ進める
+    updateCounter();
+
+    if (beansFlown >= currentPodSize) {
+      onAllBeansGone();      // 全部飛んだ → スワイプ待ち
+    } else {
+      gamePhase = 'idle';   // まだ残りがある → 長押し待ちに戻る
+    }
+  }, 700);
+}
+
+function onAllBeansGone() {
+  gamePhase = 'swipeable';
+  setTimeout(() => document.getElementById('swipe-hint').classList.add('show'), 300);
+}
+
+// ================================================================
+// 鞘スワイプ → 次へ
+// ================================================================
+function launchPod(dir) {
+  if (gamePhase !== 'swipeable') return;
+  gamePhase = 'transitioning';
+  sfxShu();
+  document.getElementById('swipe-hint').classList.remove('show');
+
+  const area = document.getElementById('pod-area');
+  area.classList.add(dir === 'right' ? 'out-right' : 'out-left');
+
+  area.addEventListener('animationend', () => {
+    area.className = '';
+    podsDone++;
+
+    if (podsDone >= TOTAL_PODS) {
+      sfxFanfare();
+      setTimeout(() => document.getElementById('cleared').classList.add('show'), 200);
+      return;
+    }
+
+    loadPod(false);
+
+    requestAnimationFrame(() => {
+      area.classList.add(dir === 'right' ? 'in-left' : 'in-right');
+      area.addEventListener('animationend', () => { area.className = ''; }, { once:true });
+    });
+  }, { once:true });
+}
+
+// ================================================================
+// カウンター
+// ================================================================
+function updateCounter() {
+  document.getElementById('counter').innerHTML =
+    `🌿 ${podsDone+1} / ${TOTAL_PODS} 鞘目<br>🫘 残り ${currentPodSize - beansFlown} 粒`;
+}
+
+// ================================================================
+// スタート（iOS: 最初のタッチで AudioContext 初期化）
+// ================================================================
+document.addEventListener('touchstart', initAudio, { once:true });
+document.addEventListener('mousedown',  initAudio, { once:true });
+
+resetGame();
+</script>
+</body>
+</html>
