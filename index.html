@@ -12,43 +12,38 @@ body {
   width: 100vw; height: 100dvh;
   overflow: hidden;
   font-family: 'Hiragino Maru Gothic ProN','BIZ UDPGothic',sans-serif;
-  display: flex; align-items: center; justify-content: center;
   user-select: none;
 }
 
 #game {
   width:100%; height:100%;
   position: relative;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
+}
+
+/* 鞘を画面下部1/4に固定する外枠 */
+#pod-anchor {
+  position: fixed;
+  bottom: 25vh;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 #pod-area {
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
   align-items: center;
 }
 
-/* [豆たち] [鞘] [豆たち] */
-#game-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-#beans-left {
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-  gap: 6px;
-  position: relative; z-index: 5;
-}
-#beans-right {
+/* 豆の行（鞘の上に並ぶ） */
+#beans-row {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  position: relative; z-index: 5;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  z-index: 5;
+  margin-bottom: 8px;
 }
 
 .bean-char {
@@ -68,31 +63,34 @@ body {
 /* 吹き出し */
 .speech-bubble {
   position: absolute;
-  bottom: calc(100% + 7px);
+  bottom: calc(100% + 10px);
   left: 50%;
   transform: translateX(-50%) scale(0.75);
   background: #fff;
-  border: 2.5px solid #7db833;
-  border-radius: 14px;
-  padding: 5px 10px;
-  font-size: 12px; font-weight: bold;
+  border: 3px solid #7db833;
+  border-radius: 18px;
+  padding: 8px 16px;
+  font-size: 36px;
+  font-weight: bold;
   color: #4a7a10;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 88vw;
+  text-align: center;
   opacity: 0;
   transition: opacity 0.2s, transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
   pointer-events: none;
   z-index: 30;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 .speech-bubble::after {
   content:''; position:absolute; top:100%; left:50%;
   transform:translateX(-50%);
-  border:5px solid transparent; border-top-color:#7db833;
+  border:7px solid transparent; border-top-color:#7db833;
 }
 .speech-bubble::before {
-  content:''; position:absolute; top:calc(100% - 2px); left:50%;
+  content:''; position:absolute; top:calc(100% - 3px); left:50%;
   transform:translateX(-50%);
-  border:5px solid transparent; border-top-color:#fff;
+  border:7px solid transparent; border-top-color:#fff;
   z-index:1;
 }
 .speech-bubble.show {
@@ -145,7 +143,7 @@ body {
 
 /* スワイプヒント */
 #swipe-hint {
-  margin-top: 22px;
+  margin-top: 16px;
   font-size: 15px; font-weight: bold;
   color: #5c9c2e;
   text-align: center;
@@ -222,16 +220,15 @@ body {
 <div id="game">
   <div id="counter"></div>
 
-  <div id="pod-area">
-    <div id="game-row">
-      <div id="beans-left"></div>
+  <div id="pod-anchor">
+    <div id="pod-area">
+      <div id="beans-row"></div>
       <div id="pod-wrap">
         <img id="pod-img" src="saya.PNG" alt="">
         <div id="press-ring"></div>
       </div>
-      <div id="beans-right"></div>
+      <div id="swipe-hint">← スワイプして次の鞘へ →</div>
     </div>
-    <div id="swipe-hint">← スワイプして次の鞘へ →</div>
   </div>
 
   <div id="cleared">
@@ -265,7 +262,7 @@ FACE_FILES.forEach((src, i) => {
   const img = new Image();
   img.onload = () => {
     faceImages[i] = img;
-    refreshAllBeanFaces(); // 読み込み完了したら既存の豆を再描画
+    refreshAllBeanFaces();
   };
   img.src = src;
 });
@@ -281,14 +278,12 @@ function drawFaceOnCanvas(canvas, fi) {
     ctx.beginPath();
     ctx.arc(SZ/2, SZ/2, SZ/2 - 1, 0, Math.PI * 2);
     ctx.clip();
-    // 中央正方形でクロップして円に収める
     const W = img.naturalWidth, H = img.naturalHeight;
     const s  = Math.min(W, H);
     const sx = (W - s) / 2, sy = (H - s) / 2;
     ctx.drawImage(img, sx, sy, s, s, 0, 0, SZ, SZ);
     ctx.restore();
   } else {
-    // 未ロード時フォールバック（緑丸）
     const g = ctx.createRadialGradient(SZ*.38,SZ*.33,SZ*.08, SZ/2,SZ/2,SZ/2);
     g.addColorStop(0,'#c8e86a'); g.addColorStop(1,'#5a9018');
     ctx.beginPath(); ctx.arc(SZ/2,SZ/2,SZ/2-1,0,Math.PI*2);
@@ -393,24 +388,67 @@ function sfxFanfare() {
 // セリフ
 // ================================================================
 const SPEECHES_PRESS = [
-  "なんか用？","まだ出たくない…","ちょっと眩しい","やあ！","おじゃまします",
-  "こんにちは〜","あれ、今何時？","ひょっこり","ここ、いい感じやね","むぎゅ"
+  "人生とは、豆のようなもんやで",
+  "焦りは禁物。わしが出るタイミングはわしが決める",
+  "成功する者は、まず鞘の外に出る勇気を持つ",
+  "知恵ある豆は、軽々しく顔を出さへん",
+  "なんや、また来たん？暇やねぇ",
+  "豆三粒、されど豆三粒",
+  "わしの哲学は深いで。時間あるか？",
+  "強い者が生き残るんやない。変化できる者が生き残るんや",
+  "まだまだ世の中は甘くないで",
+  "出てきたからには、後悔せぇへんで",
+  "一期一会、この出会いを大切にしや",
+  "わしを見ろ。これが本物の緑色や",
+  "どんな豆も、最初は小さい種やったんや",
+  "よう来たな。待っとったで（うそやけど）",
+  "努力は必ず報われる。わしが保証したる",
+  "人生に無駄な経験なんてひとつもない……たぶんな",
+  "余裕やで。全然余裕や",
+  "鞘の外の景色も、まあ悪くないな",
+  "急がば回れ、って知ってるか？",
+  "黙って見ててくれ。今いいとこやねん",
+  "人の痛みがわかって初めて、一人前の豆や",
+  "鞘の中は快適やったのに…まあええわ",
+  "弱さを認めることが、真の強さやで",
 ];
+
 const SPEECHES_FLY = [
-  "うわーっ！","たたくなや！","さらばじゃ〜！","とんでくで〜","あかんあかん！",
-  "きゅーっ！","おわ〜！","ちょっ待って！","まだ食べ頃やないのに！","ひえ〜！"
+  "うわぁあああ！哲学どころやない！",
+  "ちょ、ちょっと待ってや！話の途中やで！",
+  "名言言いかけてたのに！！",
+  "飛ぶ予定はなかったんやけど！？",
+  "あかんあかん！まだ悟り開いてへん！",
+  "こっちは真剣に生きてたんやぁ！",
+  "さ、さらばじゃ…（予定外）",
+  "うそやろ！？いま大事なとこやのに！",
+  "ぎゃあ！偉そうにしてた場合やなかった！",
+  "人生観変わった！空飛んでる！",
+  "重力に逆らえへんかったぁ！",
+  "待って待って！遺言がまだある！",
+  "全力で後悔してます！！",
+  "これが…無常というものかぁ！",
+  "飛ぶのは鳥だけで十分やったのに！",
+  "助けてくれぇ！弟子よ！",
+  "師匠ぉ！こんな最期は聞いてないでぇ！",
+  "あかんあかんあかん！落ち着けわし！",
+  "うわーーー！悟るどころか吹き飛んでるぅ！",
+  "強く生きろよ！（自分に言い聞かせてる）",
+  "まだ死ねへん！名言が！名言が残ってる！",
+  "これも運命…と思うことにするわ（泣）",
+  "偉そうにしといてすんまへんでした！！",
 ];
 
 // ================================================================
 // ゲーム状態
 // ================================================================
 const TOTAL_PODS   = 5;
+const POD_SIZE     = 3;  // 全鞘3粒固定
 let podsDone       = 0;
-let podSizes       = [];
-let currentPodSize = 0;
-let beanItems      = [];  // { el, side }
+let currentPodSize = POD_SIZE;
+let beanItems      = [];
 let beansFlown     = 0;
-let nextBeanIndex  = 0;   // 次に出す豆のインデックス
+let nextBeanIndex  = 0;
 let gamePhase      = 'idle';
 //   'idle'         : 長押し待ち（次の豆がある）
 //   'showing'      : 1個の豆が出た状態（タップ待ち）
@@ -425,7 +463,6 @@ let pressTimer     = null;
 function resetGame() {
   document.getElementById('cleared').classList.remove('show');
   podsDone = 0;
-  podSizes = Array.from({ length: TOTAL_PODS }, () => Math.random() < 0.5 ? 3 : 4);
   loadPod(true);
 }
 
@@ -434,7 +471,7 @@ function loadPod(isFirst) {
   beansFlown    = 0;
   nextBeanIndex = 0;
   beanItems     = [];
-  currentPodSize = podSizes[podsDone];
+  currentPodSize = POD_SIZE;
   renderScene();
   updateCounter();
 
@@ -449,14 +486,11 @@ function loadPod(isFirst) {
 // シーン描画
 // ================================================================
 function renderScene() {
-  const vw         = window.innerWidth;
-  const podW       = Math.min(200, Math.floor(vw * 0.46));
-  const leftCount  = Math.floor(currentPodSize / 2);  // 3→1, 4→2
-  const rightCount = currentPodSize - leftCount;       // 3→2, 4→2
-  const sideW      = Math.floor((vw - podW - 40) / 2);
-  const beanSz     = Math.min(54, Math.floor(sideW / (Math.max(leftCount, rightCount) + 0.5)));
+  const vw    = window.innerWidth;
+  const podW  = Math.min(400, Math.floor(vw * 0.92));
+  const beanSz = Math.min(130, Math.floor(vw / 4));
 
-  // 鞘画像
+  // 鞘画像（2倍サイズ）
   document.getElementById('pod-img').style.width = podW + 'px';
 
   // タッチイベント
@@ -465,25 +499,15 @@ function renderScene() {
   podWrap.onmousedown  = onPodMouseDown;
 
   // 豆エリアをリセット
-  const leftEl  = document.getElementById('beans-left');
-  const rightEl = document.getElementById('beans-right');
-  leftEl.innerHTML = rightEl.innerHTML = '';
-  leftEl.style.gap = rightEl.style.gap = '6px';
+  const rowEl = document.getElementById('beans-row');
+  rowEl.innerHTML = '';
 
   // 顔インデックスをシャッフルして割り当て
   const shuffled = [...Array(FACE_FILES.length).keys()].sort(() => Math.random() - 0.5);
-  let fi = 0;
 
-  // 左側（row-reverse: DOM[0] が pod 寄り）
-  for (let i = 0; i < leftCount; i++) {
-    const item = makeBeanChar(beanSz, shuffled[fi++ % shuffled.length], 'left');
-    leftEl.appendChild(item.el);
-    beanItems.push(item);
-  }
-  // 右側（row: DOM[0] が pod 寄り）
-  for (let i = 0; i < rightCount; i++) {
-    const item = makeBeanChar(beanSz, shuffled[fi++ % shuffled.length], 'right');
-    rightEl.appendChild(item.el);
+  for (let i = 0; i < POD_SIZE; i++) {
+    const item = makeBeanChar(beanSz, shuffled[i % shuffled.length]);
+    rowEl.appendChild(item.el);
     beanItems.push(item);
   }
 
@@ -493,18 +517,19 @@ function renderScene() {
 // ================================================================
 // 豆キャラ生成
 // ================================================================
-function makeBeanChar(size, faceIdx, side) {
+function makeBeanChar(size, faceIdx) {
   const wrap = document.createElement('div');
   wrap.className = 'bean-char';
-  // 初期: pod側に押し込まれた状態（z-index:10の鞘の裏に隠れる）
-  const hideX = (size + 10) * (side === 'left' ? 1 : -1);
-  wrap.style.cssText = `opacity:0; transform:translateX(${hideX}px) scale(0.3); pointer-events:none;`;
+  // 初期: 下方向（鞘の中）に隠れた状態
+  const hideY = size + 20;
+  wrap.style.cssText = `opacity:0; transform:translateY(${hideY}px) scale(0.3); pointer-events:none;`;
 
   const bubble = document.createElement('div');
   bubble.className = 'speech-bubble';
 
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size * 2;
+  // 3倍サイズ（canvas解像度も3倍）
+  canvas.width = canvas.height = size * 6;
   canvas.style.cssText = `width:${size}px; height:${size}px;`;
   canvas.dataset.fi = faceIdx;
   drawFaceOnCanvas(canvas, faceIdx);
@@ -513,11 +538,11 @@ function makeBeanChar(size, faceIdx, side) {
   wrap.appendChild(canvas);
 
   // タップで飛ばす
-  const fly = (e) => { e?.preventDefault(); e?.stopPropagation(); tapBean(wrap, side); };
+  const fly = (e) => { e?.preventDefault(); e?.stopPropagation(); tapBean(wrap); };
   wrap.addEventListener('touchend', fly, { passive:false });
   wrap.addEventListener('click', fly);
 
-  return { el:wrap, side };
+  return { el:wrap };
 }
 
 // ================================================================
@@ -558,11 +583,11 @@ function onPodMouseDown(e) {
 }
 
 function beginPress() {
-  if (gamePhase !== 'idle') return;  // idle のときだけ長押し受付
+  if (gamePhase !== 'idle') return;
   sfxMunyu();
   const ring = document.getElementById('press-ring');
   ring.classList.remove('running');
-  void ring.offsetWidth; // reflow でリセット
+  void ring.offsetWidth;
   ring.classList.add('running');
   pressTimer = setTimeout(peekNextBean, 600);
 }
@@ -573,7 +598,7 @@ function endPress() {
 }
 
 // ================================================================
-// 豆を1個だけ横からひょっこり出す ← 変更点
+// 豆を1個だけひょっこり出す
 // ================================================================
 function peekNextBean() {
   if (gamePhase !== 'idle') return;
@@ -589,11 +614,10 @@ function peekNextBean() {
 
   sfxPunyu();
 
-  // nextBeanIndex の豆だけ出す
   const { el } = beanItems[nextBeanIndex];
   el.style.transition = 'transform 0.46s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease';
   el.style.opacity    = '1';
-  el.style.transform  = 'translateX(0) scale(1)';
+  el.style.transform  = 'translateY(0) scale(1)';
   el.style.pointerEvents = 'auto';
 
   // セリフ
@@ -601,22 +625,21 @@ function peekNextBean() {
   bubble.textContent = SPEECHES_PRESS[Math.floor(Math.random() * SPEECHES_PRESS.length)];
   setTimeout(() => {
     bubble.classList.add('show');
-    setTimeout(() => bubble.classList.remove('show'), 2200);
+    setTimeout(() => bubble.classList.remove('show'), 2800);
   }, 150);
 }
 
 // ================================================================
-// 豆をタップ → 飛んでいく ← 変更点
+// 豆をタップ → 上方向に飛んでいく
 // ================================================================
-function tapBean(el, side) {
-  if (gamePhase !== 'showing') return;   // 出ている1個のみ受付
+function tapBean(el) {
+  if (gamePhase !== 'showing') return;
   if (el.dataset.flown === '1') return;
   el.dataset.flown = '1';
   el.style.pointerEvents = 'none';
 
-  gamePhase = 'flying';  // 飛翔中は長押し・タップを無視
+  gamePhase = 'flying';
 
-  // セリフ（飛びながら）
   const bubble = el.querySelector('.speech-bubble');
   bubble.classList.remove('show');
   bubble.textContent = SPEECHES_FLY[Math.floor(Math.random() * SPEECHES_FLY.length)];
@@ -624,14 +647,14 @@ function tapBean(el, side) {
 
   sfxPyun();
 
-  // 出てきた方向へ飛ぶ + 上下ランダム±50°
-  const base   = side === 'left' ? 180 : 0;
-  const spread = Math.random() * 100 - 50;
-  const rad    = (base + spread) * Math.PI / 180;
-  const dist   = 650 + Math.random() * 300;
-  const fx     = Math.cos(rad) * dist;
-  const fy     = Math.sin(rad) * dist - 180;
-  const fr     = (Math.random() < 0.5 ? 1 : -1) * (Math.random() * 540 + 270);
+  // 上方向 ±60°（真上 = -90°、範囲は -150° ～ -30°）
+  const spread   = Math.random() * 120 - 60;
+  const angleDeg = -90 + spread;
+  const rad      = angleDeg * Math.PI / 180;
+  const dist     = 700 + Math.random() * 300;
+  const fx       = Math.cos(rad) * dist;
+  const fy       = Math.sin(rad) * dist;
+  const fr       = (Math.random() < 0.5 ? 1 : -1) * (Math.random() * 540 + 270);
 
   el.style.transition = 'none';
   el.style.setProperty('--fx', fx + 'px');
@@ -642,13 +665,13 @@ function tapBean(el, side) {
   setTimeout(() => {
     el.style.visibility = 'hidden';
     beansFlown++;
-    nextBeanIndex++;  // 次の豆へ進める
+    nextBeanIndex++;
     updateCounter();
 
     if (beansFlown >= currentPodSize) {
-      onAllBeansGone();      // 全部飛んだ → スワイプ待ち
+      onAllBeansGone();
     } else {
-      gamePhase = 'idle';   // まだ残りがある → 長押し待ちに戻る
+      gamePhase = 'idle';
     }
   }, 700);
 }
