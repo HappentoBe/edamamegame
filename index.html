@@ -46,10 +46,10 @@ body {
   flex-direction: row;
   align-items: flex-end;
   justify-content: center;
-  gap: 12px;
+  gap: clamp(8px, 3.2vw, 12px);
   position: relative;
   z-index: 5;
-  margin-bottom: 8px;
+  margin-bottom: clamp(6px, 2.1vw, 8px);
   writing-mode: horizontal-tb;
   -webkit-writing-mode: horizontal-tb;
 }
@@ -73,22 +73,22 @@ body {
 /* 吹き出し */
 .speech-bubble {
   position: absolute;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + clamp(8px, 2.7vw, 10px));
   left: 50%;
   transform: translateX(-50%) scale(0.75);
   background: #fff;
   border: 3px solid #7db833;
   border-radius: 18px;
-  padding: 16px 24px;
-  font-size: 21px;
+  padding: clamp(12px, 4.3vw, 16px) clamp(16px, 6.4vw, 24px);
+  font-size: clamp(14px, 5.6vw, 21px);
   font-weight: bold;
   color: #4a7a10;
   writing-mode: horizontal-tb !important;
   -webkit-writing-mode: horizontal-tb !important;
   text-orientation: mixed !important;
   white-space: normal;
-  width: 33vw;
-  max-width: 33vw;
+  width: clamp(120px, 33vw, 200px);
+  max-width: clamp(120px, 33vw, 200px);
   text-align: center;
   line-height: 1.6;
   opacity: 0;
@@ -158,8 +158,8 @@ body {
 
 /* スワイプヒント */
 #swipe-hint {
-  margin-top: 16px;
-  font-size: 15px; font-weight: bold;
+  margin-top: clamp(12px, 4.3vw, 16px);
+  font-size: clamp(13px, 4vw, 15px); font-weight: bold;
   color: #5c9c2e;
   text-align: center;
   opacity: 0; transition: opacity 0.4s;
@@ -201,8 +201,8 @@ body {
 
 /* カウンター */
 #counter {
-  position: fixed; top:20px; right:20px;
-  font-size: 13px; color: #999;
+  position: fixed; top:clamp(16px, 5.3vw, 20px); right:clamp(16px, 5.3vw, 20px);
+  font-size: clamp(11px, 3.5vw, 13px); color: #999;
   text-align: right; line-height: 1.6;
 }
 
@@ -529,7 +529,6 @@ let podsDone       = 0;
 let currentPodSize = POD_SIZE;
 let beanItems      = [];
 let beansFlown     = 0;
-let nextBeanIndex  = 0;
 let gamePhase      = 'idle';
 //   'idle'         : 長押し待ち（次の豆がある）
 //   'showing'      : 1個の豆が出た状態（タップ待ち）
@@ -550,7 +549,6 @@ function resetGame() {
 function loadPod(isFirst) {
   gamePhase     = 'idle';
   beansFlown    = 0;
-  nextBeanIndex = 0;
   beanItems     = [];
   currentPodSize = POD_SIZE;
   renderScene();
@@ -569,7 +567,7 @@ function loadPod(isFirst) {
 function renderScene() {
   const vw    = window.innerWidth;
   const podW  = Math.min(400, Math.floor(vw * 0.92));
-  const beanSz = Math.min(130, Math.floor(vw / 4));
+  const beanSz = Math.min(130, Math.floor(vw * 0.25));
 
   // 鞘画像（2倍サイズ）
   document.getElementById('pod-img').style.width = podW + 'px';
@@ -587,7 +585,7 @@ function renderScene() {
   const shuffled = [...Array(FACE_FILES.length).keys()].sort(() => Math.random() - 0.5);
 
   for (let i = 0; i < POD_SIZE; i++) {
-    const item = makeBeanChar(beanSz, shuffled[i % shuffled.length]);
+    const item = makeBeanChar(beanSz, shuffled[i % shuffled.length], i);
     rowEl.appendChild(item.el);
     beanItems.push(item);
   }
@@ -598,7 +596,7 @@ function renderScene() {
 // ================================================================
 // 豆キャラ生成
 // ================================================================
-function makeBeanChar(size, faceIdx) {
+function makeBeanChar(size, faceIdx, beanIndex) {
   const wrap = document.createElement('div');
   wrap.className = 'bean-char';
   // 初期: 下方向（鞘の中）に隠れた状態
@@ -622,16 +620,23 @@ function makeBeanChar(size, faceIdx) {
   wrap.appendChild(canvas);
 
   // タップで飛ばす
-  const fly = (e) => { e?.preventDefault(); e?.stopPropagation(); tapBean(wrap); };
+  const fly = (e) => { e?.preventDefault(); e?.stopPropagation(); tapBean(wrap, beanIndex); };
   wrap.addEventListener('touchend', fly, { passive:false });
   wrap.addEventListener('click', fly);
 
-  return { el:wrap };
+  return { el:wrap, revealed:false, flown:false };
 }
 
 // ================================================================
 // 鞘のタッチ処理
 // ================================================================
+function getTouchedZone(clientX) {
+  const podRect = document.getElementById('pod-wrap').getBoundingClientRect();
+  const relX = (clientX - podRect.left) / podRect.width;
+  const clamped = Math.max(0, Math.min(0.9999, relX));
+  return Math.floor(clamped * POD_SIZE);
+}
+
 function onPodTouchStart(e) {
   e.preventDefault();
   initAudio();
@@ -647,7 +652,8 @@ function onPodTouchStart(e) {
     };
     return;
   }
-  beginPress();
+  const zone = getTouchedZone(sx);
+  beginPress(zone);
   document.ontouchend = () => { endPress(); document.ontouchend = null; };
 }
 
@@ -662,18 +668,21 @@ function onPodMouseDown(e) {
     };
     return;
   }
-  beginPress();
+  const zone = getTouchedZone(sx);
+  beginPress(zone);
   document.onmouseup = () => { endPress(); document.onmouseup = null; };
 }
 
-function beginPress() {
+function beginPress(zone) {
   if (gamePhase !== 'idle') return;
+  const item = beanItems[zone];
+  if (!item || item.revealed || item.flown) return;
   sfxMunyu();
   const ring = document.getElementById('press-ring');
   ring.classList.remove('running');
   void ring.offsetWidth;
   ring.classList.add('running');
-  pressTimer = setTimeout(peekNextBean, 600);
+  pressTimer = setTimeout(() => peekBeanAtIndex(zone), 600);
 }
 
 function endPress() {
@@ -684,11 +693,13 @@ function endPress() {
 // ================================================================
 // 豆を1個だけひょっこり出す
 // ================================================================
-function peekNextBean() {
+function peekBeanAtIndex(index) {
   if (gamePhase !== 'idle') return;
-  if (nextBeanIndex >= currentPodSize) return;
+  const item = beanItems[index];
+  if (!item || item.revealed || item.flown) return;
 
   gamePhase = 'showing';
+  item.revealed = true;
   document.getElementById('press-ring').classList.remove('running');
 
   // 鞘シェイク
@@ -698,7 +709,7 @@ function peekNextBean() {
 
   sfxPunyu();
 
-  const { el } = beanItems[nextBeanIndex];
+  const { el } = item;
   el.style.transition = 'transform 0.46s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease';
   el.style.opacity    = '1';
   el.style.transform  = 'translateY(0) scale(1)';
@@ -718,10 +729,12 @@ function peekNextBean() {
 // ================================================================
 // 豆をタップ → 上方向に飛んでいく
 // ================================================================
-function tapBean(el) {
+function tapBean(el, beanIndex) {
   if (gamePhase !== 'showing') return;
-  if (el.dataset.flown === '1') return;
-  el.dataset.flown = '1';
+  const item = beanItems[beanIndex];
+  if (!item || item.flown) return;
+  item.flown = true;
+  item.revealed = false;
   el.style.pointerEvents = 'none';
 
   gamePhase = 'flying';
@@ -749,7 +762,6 @@ function tapBean(el) {
   setTimeout(() => {
     el.style.visibility = 'hidden';
     beansFlown++;
-    nextBeanIndex++;
     updateCounter();
 
     if (beansFlown >= currentPodSize) {
