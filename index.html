@@ -27,7 +27,7 @@ body {
 /* 鞘を画面下部に固定する外枠 */
 #pod-anchor {
   position: fixed;
-  bottom: 17.5vh;
+  bottom: 7.5vh;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -80,15 +80,15 @@ body {
   border: 3px solid #7db833;
   border-radius: 18px;
   padding: 16px 24px;
-  font-size: 28px;
+  font-size: 21px;
   font-weight: bold;
   color: #4a7a10;
   writing-mode: horizontal-tb !important;
   -webkit-writing-mode: horizontal-tb !important;
   text-orientation: mixed !important;
   white-space: normal;
-  width: 60vw;
-  max-width: 60vw;
+  width: 33vw;
+  max-width: 33vw;
   text-align: center;
   line-height: 1.6;
   opacity: 0;
@@ -403,7 +403,7 @@ function sfxFanfare() {
 // セリフ表示ユーティリティ — 7文字ごとに改行を挿入する
 // ================================================================
 function formatSpeech(text) {
-  const COLS = 15;
+  const COLS = 10;
   return text.split('\n').map(line => {
     let result = '';
     for (let i = 0; i < line.length; i += COLS) {
