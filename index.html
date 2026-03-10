@@ -79,16 +79,16 @@ body {
   background: #fff;
   border: 3px solid #7db833;
   border-radius: 18px;
-  padding: clamp(12px, 4.3vw, 16px) clamp(16px, 6.4vw, 24px);
-  font-size: clamp(14px, 5.6vw, 21px);
+  padding: clamp(8px, 3vw, 11px) clamp(11px, 4.5vw, 17px);
+  font-size: clamp(8px, 3.2vw, 12px);
   font-weight: bold;
   color: #4a7a10;
   writing-mode: horizontal-tb !important;
   -webkit-writing-mode: horizontal-tb !important;
   text-orientation: mixed !important;
   white-space: normal;
-  width: clamp(120px, 33vw, 200px);
-  max-width: clamp(120px, 33vw, 200px);
+  width: clamp(109px, 30vw, 182px);
+  max-width: clamp(109px, 30vw, 182px);
   text-align: center;
   line-height: 1.6;
   opacity: 0;
@@ -567,7 +567,7 @@ function loadPod(isFirst) {
 function renderScene() {
   const vw    = window.innerWidth;
   const podW  = Math.min(400, Math.floor(vw * 0.92));
-  const beanSz = Math.min(130, Math.floor(vw * 0.25));
+  const beanSz = Math.min(91, Math.floor(vw * 0.175));
 
   // 鞘画像（2倍サイズ）
   document.getElementById('pod-img').style.width = podW + 'px';
