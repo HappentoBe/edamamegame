@@ -41,6 +41,7 @@ body {
   bottom: 7.5vh;
   left: 50%;
   transform: translateX(-50%);
+  z-index: 55;
 }
 
 #pod-area {
@@ -86,8 +87,8 @@ body {
   position: absolute;
   bottom: calc(100% + clamp(8px, 2.7vw, 10px));
   left: 50%;
-  transform: translateX(-50%) scale(0.75);
-  background: #fff;
+  transform: translateX(-50%) scale(0);
+  background: #ffffff;
   border: 3px solid #7db833;
   border-radius: 18px;
   padding: clamp(8px, 3vw, 11px) clamp(11px, 4.5vw, 17px);
@@ -102,10 +103,9 @@ body {
   max-width: clamp(187px, 51.5vw, 312px);
   text-align: center;
   line-height: 1.6;
-  opacity: 0;
-  transition: opacity 0.2s, transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
   pointer-events: none;
-  z-index: 30;
+  z-index: 60;
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 .speech-bubble::after {
@@ -116,17 +116,16 @@ body {
 .speech-bubble::before {
   content:''; position:absolute; top:calc(100% - 3px); left:50%;
   transform:translateX(-50%);
-  border:7px solid transparent; border-top-color:#fff;
+  border:7px solid transparent; border-top-color:#ffffff;
   z-index:1;
 }
 .speech-bubble.show {
-  opacity:1;
   transform:translateX(-50%) scale(1);
 }
 /* 左豆：吹き出しを右へ */
 .speech-bubble.to-right {
   left: 0;
-  transform: translateX(0) scale(0.75);
+  transform: translateX(0) scale(0);
 }
 .speech-bubble.to-right.show {
   transform: translateX(0) scale(1);
@@ -137,7 +136,7 @@ body {
 .speech-bubble.to-left {
   left: auto;
   right: 0;
-  transform: translateX(0) scale(0.75);
+  transform: translateX(0) scale(0);
 }
 .speech-bubble.to-left.show {
   transform: translateX(0) scale(1);
@@ -278,10 +277,10 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  z-index: 50;
+  z-index: 10;
 }
 .lang-btn {
-  background: none;
+  background: #ffffff;
   border: 2px solid #ddd;
   border-radius: 14px;
   padding: 4px 10px;
@@ -784,16 +783,18 @@ let currentLang = 'ja';
 
 const STRINGS = {
   ja: {
-    swipeHint:    '← スワイプして次の鞘へ →',
-    clearedTitle: '全クリア！',
-    clearedSub:   '全部の枝豆がとびだした！',
-    retryBtn:     'もう一度',
+    swipeHint: '← スワイプして次の鞘へ →',
+    set1Title: '1回目クリア！', set1Sub: '次も頑張れ！',   set1Btn: '次のセットへ！',
+    set2Title: '2回目クリア！', set2Sub: 'あと1回！',       set2Btn: '次のセットへ！',
+    set3Title: '全クリア！',    set3Sub: '全部の枝豆がとびだした！',
+    retryBtn:  'もう一度',
   },
   en: {
-    swipeHint:    '← Swipe to the next pod →',
-    clearedTitle: 'All Clear!',
-    clearedSub:   'All the edamame have popped out!',
-    retryBtn:     'Play Again',
+    swipeHint: '← Swipe to the next pod →',
+    set1Title: 'Round 1 Clear!', set1Sub: 'Keep going!', set1Btn: 'Next Round!',
+    set2Title: 'Round 2 Clear!', set2Sub: 'One more!',   set2Btn: 'Next Round!',
+    set3Title: 'All Clear!',     set3Sub: 'All the edamame have popped out!',
+    retryBtn:  'Play Again',
   }
 };
 
@@ -802,11 +803,25 @@ function setLang(lang) {
   document.getElementById('btn-ja').classList.toggle('active', lang === 'ja');
   document.getElementById('btn-en').classList.toggle('active', lang === 'en');
   document.getElementById('swipe-hint').textContent = STRINGS[lang].swipeHint;
-  document.querySelector('#cleared .cl-title').textContent = STRINGS[lang].clearedTitle;
-  document.querySelector('#cleared .cl-sub').textContent   = STRINGS[lang].clearedSub;
-  document.getElementById('retry-btn').textContent = STRINGS[lang].retryBtn;
+  updateClearedText(lang);
   document.title = lang === 'ja' ? '枝豆ゲーム' : 'Edamame Game';
   updateCounter();
+}
+
+function updateClearedText(lang) {
+  const s     = STRINGS[lang];
+  const title = document.querySelector('#cleared .cl-title');
+  const sub   = document.querySelector('#cleared .cl-sub');
+  const btn   = document.getElementById('retry-btn');
+  if (currentSet === 1 || currentSet === 2) {
+    title.textContent = s[`set${currentSet}Title`];
+    sub.textContent   = s[`set${currentSet}Sub`];
+    btn.textContent   = s[`set${currentSet}Btn`];
+  } else {
+    title.textContent = s.set3Title;
+    sub.textContent   = s.set3Sub;
+    btn.textContent   = s.retryBtn;
+  }
 }
 
 // ================================================================
@@ -1131,6 +1146,7 @@ let gamePhase      = 'idle';
 //   'transitioning': 鞘のスライドアニメ中
 let pressTimer     = null;
 let totalClears    = 0;
+let currentSet     = 0;   // 現在のセット数（1〜3）
 let faceInterval   = null;
 
 // ================================================================
@@ -1139,7 +1155,8 @@ let faceInterval   = null;
 function resetGame() {
   clearFaceInterval();
   document.getElementById('cleared').classList.remove('show');
-  podsDone = 0;
+  podsDone    = 0;
+  currentSet  = 0;
   loadPod(true);
 }
 
@@ -1198,7 +1215,10 @@ function makeBeanChar(size, faceIdx, beanIndex) {
   wrap.className = 'bean-char';
   // 初期: 下方向（鞘の中）に隠れた状態
   const hideY = size + 20;
-  wrap.style.cssText = `opacity:0; transform:translateY(${hideY}px) scale(0.3); pointer-events:none;`;
+  // 左・真ん中・右で縦位置オフセット（20% / 10% / 0 of bean size）
+  const Y_OFFSETS = [size * 0.2, size * 0.1, 0];
+  const offsetY = Y_OFFSETS[beanIndex] ?? 0;
+  wrap.style.cssText = `opacity:0; transform:translateY(${hideY}px) scale(0.3); pointer-events:none; top:${offsetY}px;`;
 
   const bubble = document.createElement('div');
   bubble.className = 'speech-bubble';
@@ -1399,6 +1419,7 @@ function launchPod(dir) {
     if (podsDone >= TOTAL_PODS) {
       sfxFanfare();
       totalClears++;
+      currentSet++;
       showClearScreen();
       return;
     }
@@ -1416,18 +1437,34 @@ function launchPod(dir) {
 // クリア画面表示
 // ================================================================
 function showClearScreen() {
-  const img = document.getElementById('cl-icon-img');
+  const img   = document.getElementById('cl-icon-img');
+  const title = document.querySelector('#cleared .cl-title');
+  const sub   = document.querySelector('#cleared .cl-sub');
+  const btn   = document.getElementById('retry-btn');
+  const s     = STRINGS[currentLang];
 
-  if (totalClears % 3 === 0) {
-    // 3回ごとにclear.png
+  if (currentSet === 3) {
+    // 3セット目クリア → clear.PNG を大きく表示してゲーム終了
     clearFaceInterval();
-    img.src = 'clear.png';
+    img.src = 'clear.PNG';
+    img.style.width       = 'auto';
+    img.style.height      = 'auto';
+    img.style.maxWidth    = '90vw';
+    img.style.maxHeight   = '60vh';
     img.style.borderRadius = '0';
-    img.style.boxShadow = 'none';
+    img.style.boxShadow   = 'none';
+    title.textContent = s.set3Title;
+    sub.textContent   = s.set3Sub;
+    btn.textContent   = s.retryBtn;
+    btn.onclick       = resetGame;
   } else {
-    // それ以外はfaceフォルダの画像がランダムに切り替わる
+    // 1・2セット目クリア → face 画像をランダム表示
+    img.style.width        = '160px';
+    img.style.height       = '160px';
+    img.style.maxWidth     = '';
+    img.style.maxHeight    = '';
     img.style.borderRadius = '50%';
-    img.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+    img.style.boxShadow    = '0 4px 20px rgba(0,0,0,0.15)';
     const faces = FACE_FILES.map(f => f.split('?')[0]);
     let idx = Math.floor(Math.random() * faces.length);
     img.src = faces[idx];
@@ -1435,9 +1472,20 @@ function showClearScreen() {
       idx = (idx + 1 + Math.floor(Math.random() * (faces.length - 1))) % faces.length;
       img.src = faces[idx];
     }, 150);
+    title.textContent = s[`set${currentSet}Title`];
+    sub.textContent   = s[`set${currentSet}Sub`];
+    btn.textContent   = s[`set${currentSet}Btn`];
+    btn.onclick       = startNextSet;
   }
 
   setTimeout(() => document.getElementById('cleared').classList.add('show'), 200);
+}
+
+function startNextSet() {
+  clearFaceInterval();
+  document.getElementById('cleared').classList.remove('show');
+  podsDone = 0;
+  loadPod(true);
 }
 
 function clearFaceInterval() {
