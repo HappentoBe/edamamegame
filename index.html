@@ -268,9 +268,41 @@ body {
   box-shadow: 0 4px 16px rgba(92,156,46,0.35);
 }
 #retry-btn:active { transform:scale(0.94); }
+
+/* 言語切替ボタン */
+#lang-switch {
+  position: fixed;
+  top: clamp(16px, 5.3vw, 20px);
+  left: clamp(16px, 5.3vw, 20px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 50;
+}
+.lang-btn {
+  background: none;
+  border: 2px solid #ddd;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: clamp(16px, 5vw, 22px);
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.2s, border-color 0.2s;
+  font-family: inherit;
+  line-height: 1;
+}
+.lang-btn.active {
+  opacity: 1;
+  border-color: #5c9c2e;
+}
 </style>
 </head>
 <body>
+
+<div id="lang-switch">
+  <button class="lang-btn active" id="btn-ja" onclick="setLang('ja')">🇯🇵 Japanese</button>
+  <button class="lang-btn" id="btn-en" onclick="setLang('en')">🇺🇸 English</button>
+</div>
 
 <div id="game">
   <div id="counter"></div>
@@ -734,6 +766,343 @@ const SPEECHES_PRESS = [
 ];
 
 // ================================================================
+// 言語
+// ================================================================
+let currentLang = 'ja';
+
+const STRINGS = {
+  ja: {
+    swipeHint:    '← スワイプして次の鞘へ →',
+    clearedTitle: '全クリア！',
+    clearedSub:   '全部の枝豆がとびだした！',
+    retryBtn:     'もう一度',
+  },
+  en: {
+    swipeHint:    '← Swipe to the next pod →',
+    clearedTitle: 'All Clear!',
+    clearedSub:   'All the edamame have popped out!',
+    retryBtn:     'Play Again',
+  }
+};
+
+function setLang(lang) {
+  currentLang = lang;
+  document.getElementById('btn-ja').classList.toggle('active', lang === 'ja');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('swipe-hint').textContent = STRINGS[lang].swipeHint;
+  document.querySelector('#cleared .cl-title').textContent = STRINGS[lang].clearedTitle;
+  document.querySelector('#cleared .cl-sub').textContent   = STRINGS[lang].clearedSub;
+  document.getElementById('retry-btn').textContent = STRINGS[lang].retryBtn;
+  document.title = lang === 'ja' ? '枝豆ゲーム' : 'Edamame Game';
+  updateCounter();
+}
+
+// ================================================================
+// 英語セリフ
+// ================================================================
+const SPEECHES_PRESS_EN = [
+  "Keep going, don't stop now!\nQuitting is the only real failure!",
+  "Failure is the mother of success!\nGet back up every single time!",
+  "Time is gold, don't waste it!\nEvery second counts!",
+  "Fall seven times, rise eight!\nThe one who gets up always wins!",
+  "The early bird catches the worm!\nMorning is full of golden opportunities!",
+  "Little drops make a mighty ocean!\nNever underestimate small efforts!",
+  "Friends are treasures, treat them well!\nYou'll regret it if you don't!",
+  "Good things take time!\nDon't give up too soon!",
+  "Dream big, aim high!\nSmall dreams are a waste of your potential!",
+  "Health is your greatest wealth!\nTake care of your body!",
+  "Readers are leaders!\nKnowledge is the mightiest weapon!",
+  "Always be grateful!\nSaying thank you is a sign of strength!",
+  "Honesty is always the best policy!\nThe truthful always win in the end!",
+  "Never waste food!\nBe thankful for every meal!",
+  "Protect our planet!\nThe Earth belongs to all of us!",
+  "Keep things neat and tidy!\nAn organized space means an organized mind!",
+  "A good greeting opens every door!\nSpeak up and say hello!",
+  "Focus changes everything!\nDaydreaming costs you more than you think!",
+  "Never stop, never quit!\nGiving up halfway leaves you with nothing!",
+  "A smile is the most powerful magic!\nWith a smile, you have no enemies!",
+  "Stay curious always!\nWondering 'why?' is your greatest treasure!",
+  "True strength is kindness!\nBullies are just scared deep inside!",
+  "Teamwork makes the dream work!\nThere's only so much you can do alone!",
+  "Never be ashamed of failure!\nIt's proof that you had the guts to try!",
+  "Spend money wisely!\nWasting it will only make you cry later!",
+  "Sleep is how you grow!\nGet to bed early!",
+  "Without practice, there is no success!\nEven geniuses train hard!",
+  "Stay humble, stay hungry!\nBragging only pushes people away!",
+  "Think ahead, act ahead!\nBeing reactive is always harder!",
+  "It's okay to cry!\nTears are never something to be ashamed of!",
+  "Always keep your promises!\nTrust is built one promise at a time!",
+  "Find what you love!\nIt will become the engine of your life!",
+  "Help those in need!\nThat's what makes you truly great!",
+  "Move your body every day!\nA lazy body leads to a lazy mind!",
+  "Good manners open doors!\nNever underestimate politeness!",
+  "Write neatly, think clearly!\nSloppy writing shows a sloppy mind!",
+  "Wash your hands before eating!\nCleanliness is the foundation of health!",
+  "Nurture friendships like plants!\nWater them with care and they'll grow!",
+  "Dare to share your dreams!\nThere's no shame in having big hopes!",
+  "Reflect on failure and grow!\nThe same mistake twice is unforgivable!",
+  "Never forget your parents!\nSomeone is always supporting you!",
+  "Real strength is gentleness!\nMean kids are just hiding their weakness!",
+  "Use your brain and it gets sharper!\nSlacking only makes it duller!",
+  "Slow and steady wins the race!\nRushing only leads to mistakes!",
+  "One good deed a day!\nTry being kind to someone every day!",
+  "Save water, save life!\nThe Earth's water is precious and limited!",
+  "Rules exist to be followed!\nSelfishness never wins!",
+  "Bad days happen to everyone!\nThat's just what life is!",
+  "There's no shame in not knowing!\nNot asking is what's truly wasteful!",
+  "Set a goal and chase it!\nA ship without direction just drifts!",
+  "Listen to understand, not just to reply!\nTalking alone teaches you nothing!",
+  "Grow your strengths!\nThat's your unique weapon in this world!",
+  "A rich heart beats a rich wallet!\nCharacter beats money every time!",
+  "Notice the changing seasons!\nSensing nature makes you richer inside!",
+  "Speak up for what's right!\nSilence changes nothing!",
+  "Preparation wins battles!\nGoing in unprepared is asking to lose!",
+  "Reading is a journey for your soul!\nKids who don't read have a narrow world!",
+  "Better today than yesterday!\nGrow a little more every single day!",
+  "Polish yourself, not envy others!\nComparing won't move you forward!",
+  "Thank the hands that made your food!\nBow your head and say thank you!",
+  "Learning with joy is the best way!\nForced learning never really sticks!",
+  "Try and fail beats never trying!\nAn attempted failure has real value!",
+  "Listen to your heart and live honestly!\nBetraying yourself is the hardest life!",
+  "Effort always takes shape eventually!\nEven when you can't see it, it's stacking up!",
+  "Choose your words with care!\nWords can hurt just as deeply as actions!",
+  "Eat a proper breakfast!\nFood is the fuel for all your energy!",
+  "Small kindness can change the world!\nStart with what you can do right now!",
+  "Music feeds the soul!\nTreasure the music you love!",
+  "Believing in yourself is step one!\nThe moment you quit, the game is over!",
+  "Never talk behind people's backs!\nGossip hurts you too in the end!",
+  "Take care of your things!\nTreating them roughly is never okay!",
+  "Do what you want to do NOW!\nDon't delay — now is all you've got!",
+  "Admit your weakness to grow strong!\nOnly those who know weakness truly strengthen!",
+  "Lack of sleep is your enemy!\nRest your mind and get some proper sleep!",
+  "The experience of effort never fades!\nIt will become your treasure someday!",
+  "See the good in people!\nTrain your eyes to spot strengths, not flaws!",
+  "Rainy days matter too!\nWithout rain, nothing would ever grow!",
+  "Go at your own pace — that's fine!\nNo need to rush or compare!",
+  "Life itself is the greatest treasure!\nBe grateful just to be alive!",
+  "One true friend beats a thousand acquaintances!\nQuality over quantity always!",
+  "An honest heart grows fastest!\nStubborn pride only slows you down!",
+  "Eat well and fight strong!\nYou can't focus on an empty stomach!",
+  "Never lose your dreams as you grow up!\nDreams are what keep you going!",
+  "Failure is wealth!\nSomeone who has failed is stronger than someone who hasn't!",
+  "Train your eye for beauty!\nA heart that's moved is a heart that's rich!",
+  "Own what you say and do it!\nNever be the person who is all talk!",
+  "Winter comes before spring shines!\nHard times are never wasted!",
+  "Help around the house!\nThe one who pitches in is strong at home too!",
+  "Don't rush for results!\nEven trees take years to bear fruit!",
+  "Do today's work today!\nProcrastination is your greatest enemy!",
+  "Don't run from what's hard!\nGrowth lives on the other side of struggle!",
+  "Walk a mile in someone else's shoes!\nEmpathy is what makes you wise!",
+  "Time is more precious than money!\nYou can never get time back!",
+  "How you live is life's greatest lesson!\nNever forget to study being human!",
+  "Smile and luck will find you!\nA grumpy face scares good fortune away!",
+  "It's not 'can I?' — it's 'will I?'!\nDecision is what moves you forward!",
+  "Wonder is life's greatest gift!\nGrow up to be someone who is moved!",
+  "Even the smallest job deserves care!\nCareful habits build real power!",
+  "Those who laugh when they fall are strong!\nRising with a grin is the coolest thing!",
+  "Treasure this moment right now!\nBoth past and future are born from now!",
+  "Manage your own mood!\nBeing controlled by others' moods is a waste!",
+  "When in doubt, take the harder road!\nThe easy path won't grow you!",
+  "The regret of doing beats the regret of not doing!\nMove, move, move!",
+  "Thinking without acting changes nothing!\nJust try it and see!",
+  "It's normal for things to go wrong!\nThings going right is the rarer thing!",
+  "Don't do it for praise — do it for growth!\nGrowth is its own reward!",
+  "Steady effort never betrays you!\nConsistency is the mightiest weapon!",
+  "Stop blaming others!\nSee everything as your own responsibility and you'll grow!",
+  "You can start changing today!\nNever say 'starting tomorrow'!",
+  "Every failure makes you tougher!\nFail boldly, fail often, fail forward!",
+  "What you do with full effort stays with you!\nHalf-hearted work leaves nothing behind!",
+  "Once you develop a habit of quitting, it's hard to break!\nHold on even when it's tough!",
+  "Try first, think second!\nYou learn more by doing than by planning!",
+  "Relationships are precious!\nSome bonds, once broken, never mend!",
+  "Being able to apologize sincerely is a strength!\nSaving face costs you more than you think!",
+  "Whatever the work, give it your all!\nSlacking only hurts yourself!",
+  "Use bright words and bright things happen!\nYour words shape your own mind!",
+  "Don't blame your situation!\nThe truly great shine in any environment!",
+  "No talent? Effort itself is a talent!\nNever give up!",
+  "Action cures anxiety!\nMore thinking only makes it worse!",
+  "Today's hard work builds tomorrow's self!\nSlacking now means regret later!",
+  "Don't envy others' success!\nPut that energy into your own growth!",
+  "Limits are set by your own mind!\nIf you think you can go further, you can!",
+  "Rest is also part of the effort!\nDon't confuse rest with laziness!",
+  "Hard times teach you the most!\nStruggle is always a growth opportunity!",
+  "Compare yourself to who you were yesterday!\nComparing to others leads nowhere!",
+  "Live with conviction!\nDrifting without purpose means grabbing nothing!",
+  "Stop looking for reasons you can't!\nLook for ways you can — that's wisdom!",
+  "Show it through action, not just words!\nDoers are the ones who earn trust!",
+  "Successful people are those who refused to quit!\nThat's the only difference!",
+  "There's no age limit on challenge!\nStart right now!",
+  "Knowledge without practice is worthless!\nApply what you learn!",
+  "Grateful people find happiness!\nNever lose sight of gratitude!",
+  "Even small goals achieved build confidence!\nStart small and grow!",
+  "Responsibility earns trust!\nSee every task through to the end!",
+  "Punctuality is respect for others!\nBeing late is a form of dishonesty!",
+  "Knowing your weakness leads to strength!\nNever look away from who you really are!",
+  "One brave step changes your life!\nMove even when you're scared!",
+  "Do the hard thing first!\nPutting it off only makes it heavier!",
+  "Kindness to others makes you feel good too!\nGive it a try!",
+  "Believe in your own worth!\nDon't let others define your value!",
+  "Train yourself to see the bright side!\nNegative thinking is a losing habit!",
+  "Find joy in the little things!\nThat's what true happiness looks like!",
+  "Show compassion to everyone!\nGrow into someone who feels others' pain!",
+  "Integrity is the coolest way to live!\nNever compromise on honesty!",
+  "Honor your own uniqueness!\nCopying others all the time is boring!",
+  "Dreams are for chasing, not sleeping!\nChase them with your actions!",
+  "Everyone has something great about them!\nFocusing only on flaws is a waste!",
+  "When your heart's about to break — hold on!\nThat's the turning point!",
+  "Even people you dislike can teach you!\nMake them your anti-role models!",
+  "Opportunity comes to those who are ready!\nPrepare every single day!",
+  "Stand behind your words!\nSay it and then do it!",
+  "Cherishing teammates is cherishing yourself!\nNo one lives alone!",
+  "Try something new every day!\nLife gets richer with every new experience!",
+  "Never lose your laughter!\nWhen you stop laughing, something's wrong!",
+  "Move for others and become stronger!\nSelf-centered thinking keeps you small!",
+  "Be a person with a backbone!\nLive with an unshakable core!",
+  "Control your emotions, control your life!\nDon't be a slave to your feelings!",
+  "Hold on even when everyone else quits!\nThat tenacity is your greatest strength!",
+  "Give everything to what's in front of you!\nDivided effort gets you nowhere!",
+  "Get up and laugh even after falling!\nRising with a smile is the coolest move!",
+  "Don't stay stuck on past failures!\nThe past is fixed, the future is yours!",
+  "Today's effort is a gift for your future self!\nHelp yourself out — work hard now!",
+  "Be grateful for your rivals!\nThey're the ones who push you to grow!",
+  "Consistency is life's greatest power!\nKeep going — it's the strongest weapon!",
+  "Toughing it out in hard times builds your confidence!\nHang in there now!",
+  "Stay positive no matter your circumstances!\nNever let your environment beat you!",
+  "Act to make someone smile today!\nThat becomes life's greatest purpose!",
+  "Follow your curiosity wherever it leads!\nTrying things you care about is everything!",
+  "Have the courage to let go of what you don't need!\nReleasing makes room for new things!",
+  "Say out loud what's great about others!\nPraise generously — it enriches you too!",
+  "Learn to love yourself!\nYou can't truly love others if you hate yourself!",
+  "More attempts means higher odds of success!\nChallenge yourself again and again!",
+  "Smiling when it's tough is a real skill!\nThe one who smiles through it is the real pro!",
+  "Change yourself before trying to change others!\nWhen you change, the world changes too!",
+  "Today's step one begins a hundred-mile journey!\nEvery great journey starts with one step!",
+  "Listen more than you speak!\nEvery conversation makes you deeper!",
+  "Anxiety is the enemy of good judgment!\nBreathe deep and calm yourself down!",
+  "Wisdom is knowing how to use knowledge!\nSharpening judgment matters more!",
+  "Don't be afraid to ask for help!\nSeeking help takes real courage too!",
+  "The way you speak reflects your character!\nChoose your words with care!",
+  "The feeling of finishing what you started is addictive!\nComplete one thing first!",
+  "Being near people who energize you is everything!\nTreasure those who matter!",
+  "Seeing the view beyond your limit is worth it!\nIt's the most incredible sight!",
+  "Stop endlessly hesitating!\nJust decide and go for it!",
+  "Show the next generation a back worth following!\nLive up to your best self!",
+  "Live fully so you have no regrets!\nEvery moment lived all-out is enough!",
+  "No experience in life is ever wasted!\nEverything becomes part of your foundation!",
+  "Positive people attract positive people!\nBe the brightness that draws others in!",
+  "Develop the ability to stay calm and think!\nGetting emotional is always a loss!",
+  "Never hold back your gratitude!\nSaying thank you more costs you nothing!",
+  "Talent is polished by effort!\nUnpolished talent is just a rock!",
+  "Dirty, gritty effort makes beautiful results!\nDon't be ashamed of working hard!",
+  "The bigger the dream, the more power you have!\nDream as big as you possibly can!",
+  "Start with what you can do!\nYou don't have to do it all at once!",
+  "You're the star of your own life!\nDon't live like you're just a side character!",
+  "Be confident in your choices!\nMake the path you chose the right one!",
+  "Write out your worries to clear your head!\nWords on paper beat words in your mind!",
+  "A little every day — in six months, a huge difference!\nKeep it up!",
+  "A strong will beats any circumstance!\nWill power is everything!",
+  "The biggest waste in life is regret!\nKeep making choices you won't regret!",
+  "Find the fun in anything and you'll master it!\nEnjoy the process!",
+  "Say your dreams out loud and proud!\nVoicing them makes them more real!",
+  "Life is a one-time experience!\nEnjoy it to the absolute fullest!",
+  "Today's failure is the seed of tomorrow's success!\nNurture it and let it grow!",
+  "Trust takes time to build and a second to break!\nHandle it with care!",
+  "Effort plus ingenuity is the winning formula!\nNeither one alone is enough!",
+  "No shortcuts in life!\nBut always seek the smartest route!",
+  "Your actions become habits, habits become character!\nChoose your actions wisely!",
+  "To gain something, be ready to give something up!\nPrioritize what truly matters!",
+  "People skills will always be in demand!\nCultivate your human qualities!",
+  "A solid inner core can weather any storm!\nBuild that unshakable foundation!",
+  "Just go ahead and try it!\nDoing is usually the fastest way to an answer!",
+  "Develop the power to find things interesting!\nCuriosity makes life richer!",
+  "Time you spend talking trash could be spent growing!\nChoose wisely!",
+  "No matter how small, do every task with care!\nDiligent habits build real skill!",
+  "A morning greeting can change your whole day!\nGive a warm hello a try!",
+  "Keep your mind flexible!\nFixed thinking is the enemy of growth!",
+  "End each day by recalling the good things!\nTrain your mind to see the positive!",
+  "Keep adding to what you can do!\nNew skills are the real wealth!",
+  "Your words create your reality!\nKeep speaking positive things into existence!",
+  "Fear of failure is scarier than failure itself!\nGo for it without hesitation!",
+  "People with goals don't get lost!\nGet crystal-clear on what you're aiming for!",
+  "Turn the past into lessons and fuel for the future!\nThe past is a goldmine!",
+  "Making others happy — make that your mission!\nThat's the best life you can live!",
+  "Be proactive, not passive!\nWaiting around makes nothing happen!",
+  "Know the joy of finishing something completely!\nSee it through to the very end!",
+  "Good mornings lead to good days!\nStart each morning with the right energy!",
+  "Stay open-minded and adaptable!\nRigidity is the enemy of progress!",
+  "One day at a time, one step at a time!\nThat's how mountains are climbed!",
+  "Your unique perspective is your gift to the world!\nNever hide it!",
+  "Resilience is built through adversity!\nEvery hardship makes you tougher!",
+  "Give more than you take!\nGenerosity always comes back around!",
+  "The power of a kind word is immeasurable!\nSpread them freely!",
+  "Excellence is a habit, not an act!\nShow up with your best every day!",
+  "Your attitude determines your altitude!\nChoose a great attitude every morning!",
+  "Surround yourself with people who lift you higher!\nEnvironment shapes who you become!",
+  "Do it right the first time!\nCutting corners creates more work later!",
+  "Every expert was once a beginner!\nDon't be discouraged by where you start!",
+  "Make peace with your imperfections!\nThey make you wonderfully human!",
+  "The best investment you can make is in yourself!\nNever stop learning and growing!",
+  "Courage is not the absence of fear!\nIt's acting despite the fear!",
+  "Your energy is contagious — make it positive!\nBe the good energy in the room!",
+  "Celebrate small wins along the way!\nEvery step forward deserves recognition!",
+  "Be the kind of friend you wish you had!\nLead by example in relationships!",
+  "Hard work beats talent when talent doesn't work hard!\nOutwork everyone!",
+  "The secret to getting ahead is getting started!\nStop waiting and begin!",
+  "You are capable of more than you know!\nPush your boundaries and discover it!",
+  "Character is how you act when no one is watching!\nBe consistent always!",
+  "Every morning is a fresh start!\nLeave yesterday's troubles behind and begin anew!",
+  "Your story isn't over yet!\nThe best chapters might still be ahead of you!",
+  "Patience is maintaining a good attitude while working!\nStay steady!",
+  "The more you help others succeed, the more you succeed!\nLift others up!",
+  "Discipline is doing what needs to be done even when you don't feel like it!\nBuild it!",
+  "A grateful heart is a magnet for miracles!\nCount your blessings daily!",
+  "You don't have to be perfect to be amazing!\nJust be authentic and keep growing!",
+  "Think before you speak — words are powerful!\nChoose them wisely every time!",
+  "Success is not given, it's earned through consistent effort!\nEarn it every day!",
+  "The strongest people have gone through the hardest times!\nYour struggles are building you!",
+  "Make today count — it won't come again!\nLive it with purpose and intention!",
+  "Be someone others can rely on!\nDependability is a rare and precious quality!",
+  "Growth happens outside of your comfort zone!\nStretch yourself a little every day!",
+  "Your habits are your destiny!\nChoose the habits that lead where you want to go!",
+  "Listen to your body — it knows what it needs!\nHonor your need for rest and care!",
+  "The biggest room in the world is the room for improvement!\nAlways keep growing!",
+  "Be the change you wish to see in the world!\nStart with yourself today!",
+  "Every no gets you closer to a yes!\nKeep asking, keep trying, keep going!",
+  "What you feed your mind, you become!\nFeed it with great thoughts and ideas!",
+  "It's not about being the best — it's about being better than yesterday!\nGrow daily!",
+  "A positive mind finds opportunity in every difficulty!\nTrain your mind to see the good!",
+  "Your future self will thank you for what you do today!\nMake them proud!",
+  "Dream it, believe it, achieve it!\nThe sequence always starts with a dream!",
+  "Kindness is free — give it away generously!\nIt costs nothing but means everything!",
+  "Focus on what you can control and let go of the rest!\nThat's where your power is!",
+  "Real confidence comes from competence!\nBuild your skills and confidence will follow!",
+  "Don't let good enough be the enemy of great!\nAlways reach a little higher!",
+  "You are the author of your own story!\nWrite something worth reading!",
+  "Action is the antidote to despair!\nWhen you feel stuck, do something — anything!",
+  "The most valuable asset you have is your time!\nSpend it on what truly matters!",
+  "Being kind to yourself is not weakness — it's wisdom!\nTreat yourself with compassion!",
+  "Never stop asking questions!\nCuriosity is the engine of innovation!",
+  "Your mindset is everything!\nWith the right mindset, any challenge is surmountable!",
+  "Build bridges, not walls!\nConnection and cooperation create the greatest outcomes!",
+  "Embrace failure as feedback!\nEvery setback is teaching you something invaluable!",
+  "Show up fully, even on the hard days!\nShowing up is more than half the battle!",
+  "The effort you put in today compounds over time!\nInvest in yourself consistently!",
+  "Speak kindly to yourself!\nThe way you talk to yourself shapes who you become!",
+  "Great things take time — be patient with your progress!\nYou're closer than you think!",
+  "Every day is a chance to become a better version of yourself!\nSeize it!",
+  "Don't just dream of winning — prepare for it!\nPreparation separates winners from wishers!",
+  "Make your actions match your words!\nIntegrity is living without contradiction!",
+  "Strength grows in the moments you think you can't go on!\nKeep going!",
+  "The world needs what only you can bring!\nShare your gifts without holding back!",
+  "Commit fully to what you care about!\nHalf-hearted effort yields half-hearted results!",
+  "Learn from yesterday, live for today, hope for tomorrow!\nBalance your perspective!",
+  "Success is a series of small wins!\nCelebrate each one and keep stacking them up!",
+  "Your reputation is built one action at a time!\nMake each one count!",
+  "Be curious, be brave, be kind!\nThose three things will take you far in life!",
+  "This moment right now is where your story changes!\nMake it count — you've got this!",
+];
+
+// ================================================================
 // ゲーム状態
 // ================================================================
 const TOTAL_PODS   = 5;
@@ -936,7 +1305,8 @@ function peekBeanAtIndex(index) {
   const bubble = el.querySelector('.speech-bubble');
   bubble.style.setProperty('writing-mode', 'horizontal-tb', 'important');
   bubble.style.setProperty('-webkit-writing-mode', 'horizontal-tb', 'important');
-  bubble.innerHTML = formatSpeech(SPEECHES_PRESS[Math.floor(Math.random() * SPEECHES_PRESS.length)]);
+  const speeches = currentLang === 'ja' ? SPEECHES_PRESS : SPEECHES_PRESS_EN;
+  bubble.innerHTML = formatSpeech(speeches[Math.floor(Math.random() * speeches.length)]);
   setTimeout(() => {
     bubble.classList.add('show');
     setTimeout(() => bubble.classList.remove('show'), 4032);
@@ -991,6 +1361,7 @@ function tapBean(el, beanIndex) {
 
 function onAllBeansGone() {
   gamePhase = 'swipeable';
+  document.getElementById('swipe-hint').textContent = STRINGS[currentLang].swipeHint;
   setTimeout(() => document.getElementById('swipe-hint').classList.add('show'), 300);
 }
 
