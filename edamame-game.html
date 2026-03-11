@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>枝豆ゲーム</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
+
+  body {
+    background: #fff;
+    width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+    font-family: 'Hiragino Maru Gothic ProN', 'BIZ UDPGothic', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+  }
+
+  #game {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ===== 鞘 ===== */
+  #pod-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+
+  #pod-container:active { transform: scale(0.95); }
+
+  .pod-svg {
+    filter: drop-shadow(0 8px 24px rgba(100,160,60,0.25));
+    transition: filter 0.2s;
+  }
+
+  /* ===== 豆キャラ ===== */
+  .bean-char {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .bean-body {
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #c8e86a, #7db833);
+    box-shadow: inset -4px -4px 8px rgba(0,0,0,0.15), 0 4px 12px rgba(80,140,30,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .bean-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .speech-bubble {
+    background: #fff;
+    border: 2.5px solid #7db833;
+    border-radius: 16px;
+    padding: 6px 18.9px;
+    font-size: 20.33px;
+    font-weight: bold;
+    color: #4a7a10;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+    position: relative;
+    margin-bottom: 6px;
+    opacity: 0;
+    transform: scale(0.7);
+    transition: opacity 0.25s, transform 0.25s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #7db833;
+  }
+  .speech-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: -7px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #fff;
+    z-index: 1;
+  }
+
+  .speech-bubble.show {
+    opacity: 1;
+    transform: scale(1);
+  }
+  /* 左豆：吹き出しを右へ */
+  .speech-bubble.to-right {
+    transform: translateX(55%) scale(0.7);
+  }
+  .speech-bubble.to-right.show {
+    transform: translateX(55%) scale(1);
+  }
+  .speech-bubble.to-right::after { left: 20%; }
+  .speech-bubble.to-right::before { left: 20%; }
+  /* 右豆：吹き出しを左へ */
+  .speech-bubble.to-left {
+    transform: translateX(-55%) scale(0.7);
+  }
+  .speech-bubble.to-left.show {
+    transform: translateX(-55%) scale(1);
+  }
+  .speech-bubble.to-left::after { left: 80%; }
+  .speech-bubble.to-left::before { left: 80%; }
+
+  /* ===== アニメ ===== */
+  @keyframes peek-in {
+    0% { transform: translateY(40px) scale(0.5); opacity: 0; }
+    60% { transform: translateY(-8px) scale(1.1); opacity: 1; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  @keyframes fly-out {
+    0% { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translate(var(--fx), var(--fy)) rotate(var(--fr)) scale(0.3); opacity: 0; }
+  }
+
+  @keyframes pod-shake {
+    0%,100% { transform: rotate(0deg); }
+    20% { transform: rotate(-6deg); }
+    40% { transform: rotate(6deg); }
+    60% { transform: rotate(-4deg); }
+    80% { transform: rotate(4deg); }
+  }
+
+  .pod-shake { animation: pod-shake 0.4s ease; }
+
+  /* ===== カウンター ===== */
+  #counter {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    font-size: 13px;
+    color: #888;
+    text-align: right;
+    line-height: 1.6;
+  }
+
+  /* ===== 完了メッセージ ===== */
+  #cleared {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: #f0fad8;
+    border: 3px solid #7db833;
+    border-radius: 24px;
+    padding: 32px 48px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    color: #4a7a10;
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 100;
+    display: none;
+  }
+  #cleared.show { transform: translate(-50%, -50%) scale(1); display: block; }
+  #cleared button {
+    margin-top: 16px;
+    background: #7db833;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 28px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="counter"></div>
+  <div id="pod-container"></div>
+  <div id="cleared">
+    <div>🌿 全部とびだした！🌿</div>
+    <button onclick="resetGame()">もう一度</button>
+  </div>
+</div>
+
+<script>
+// ===== データ =====
+const SPEECHES_PRESS = [
+  "なんか用？", "まだ出たくない…", "ちょっと眩しい", "やあ！", "おじゃまします",
+  "こんにちは〜", "あれ、今何時？", "ひょっこり", "ここ、いい感じやね", "むぎゅ"
+];
+const SPEECHES_FLICK = [
+  "うわーっ！", "たたくなや！", "さらばじゃ〜！", "とんでくで〜", "あかんあかん！",
+  "きゅーっ！", "おわ〜！", "ちょっ待って！", "まだ食べ頃やないのに！", "ひえ〜！"
+];
+const FACES = ["😄","😊","😏","🥺","😤","😴","🤩","😋","🫠","😎"];
+
+// ===== 状態 =====
+let currentPodSize = 0;  // 鞘の豆数 (3 or 4)
+let beansLeft = 0;        // 残り豆数
+let podsDone = 0;
+let totalPods = 5;        // 全部で5鞘
+let podPhase = 'idle';    // idle | pressed | flying
+let currentBeanIndex = 0;
+let beanElements = [];
+let podSizes = [];
+let clearCount = 0;       // 全クリア回数
+
+// ===== DOM =====
+const podContainer = document.getElementById('pod-container');
+const counter = document.getElementById('counter');
+const cleared = document.getElementById('cleared');
+
+// ===== 初期化 =====
+function resetGame() {
+  cleared.classList.remove('show');
+  podsDone = 0;
+  podSizes = [];
+  for (let i = 0; i < totalPods; i++) {
+    podSizes.push(Math.random() < 0.5 ? 3 : 4);
+  }
+  nextPod();
+}
+
+function nextPod() {
+  if (podsDone >= totalPods) {
+    showCleared();
+    return;
+  }
+  currentPodSize = podSizes[podsDone];
+  beansLeft = currentPodSize;
+  currentBeanIndex = 0;
+  beanElements = [];
+  podPhase = 'idle';
+  renderPod();
+  updateCounter();
+}
+
+// ===== 鞘を描画 =====
+function renderPod() {
+  podContainer.innerHTML = '';
+
+  // 鞘SVG
+  const w = currentPodSize === 3 ? 180 : 210;
+  const h = 90;
+  const svg = createPodSVG(currentPodSize, w, h);
+  svg.classList.add('pod-svg');
+  podContainer.appendChild(svg);
+
+  // 豆キャラを鞘の中に配置（非表示で準備）
+  for (let i = 0; i < currentPodSize; i++) {
+    const bc = createBeanChar(i, currentPodSize, w, h);
+    bc.dataset.index = i;
+    bc.style.opacity = '0';
+    podContainer.appendChild(bc);
+    beanElements.push(bc);
+  }
+
+  podContainer.ontouchstart = handleTouch;
+  podContainer.onmousedown = handleMouse;
+}
+
+// ===== 鞘SVG生成 =====
+function createPodSVG(count, w, h) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+  // 鞘の形（横長のカプセル）
+  const rx = h * 0.42;
+  const pod = document.createElementNS(ns, 'rect');
+  pod.setAttribute('x', '4');
+  pod.setAttribute('y', '4');
+  pod.setAttribute('width', w - 8);
+  pod.setAttribute('height', h - 8);
+  pod.setAttribute('rx', rx);
+  pod.setAttribute('fill', 'url(#podGrad)');
+  pod.setAttribute('stroke', '#4a8a18');
+  pod.setAttribute('stroke-width', '2.5');
+
+  // グラデ
+  const defs = document.createElementNS(ns, 'defs');
+  const grad = document.createElementNS(ns, 'linearGradient');
+  grad.setAttribute('id', 'podGrad');
+  grad.setAttribute('x1', '0');
+  grad.setAttribute('y1', '0');
+  grad.setAttribute('x2', '0');
+  grad.setAttribute('y2', '1');
+  const s1 = document.createElementNS(ns, 'stop');
+  s1.setAttribute('offset', '0%');
+  s1.setAttribute('stop-color', '#a8d848');
+  const s2 = document.createElementNS(ns, 'stop');
+  s2.setAttribute('offset', '100%');
+  s2.setAttribute('stop-color', '#5a9018');
+  grad.appendChild(s1);
+  grad.appendChild(s2);
+  defs.appendChild(grad);
+
+  // ハイライト
+  const hl = document.createElementNS(ns, 'ellipse');
+  hl.setAttribute('cx', w / 2);
+  hl.setAttribute('cy', h * 0.28);
+  hl.setAttribute('rx', w * 0.32);
+  hl.setAttribute('ry', h * 0.12);
+  hl.setAttribute('fill', 'rgba(255,255,255,0.25)');
+
+  // 豆の膨らみ
+  const step = (w - 40) / count;
+  for (let i = 0; i < count; i++) {
+    const cx = 24 + step * i + step / 2;
+    const bump = document.createElementNS(ns, 'ellipse');
+    bump.setAttribute('cx', cx);
+    bump.setAttribute('cy', h / 2 + 2);
+    bump.setAttribute('rx', step * 0.38);
+    bump.setAttribute('ry', h * 0.28);
+    bump.setAttribute('fill', 'rgba(255,255,255,0.12)');
+    bump.setAttribute('stroke', 'rgba(60,120,10,0.3)');
+    bump.setAttribute('stroke-width', '1');
+    svg.appendChild(bump);
+  }
+
+  svg.appendChild(defs);
+  svg.appendChild(pod);
+  svg.appendChild(hl);
+  return svg;
+}
+
+// ===== 豆キャラ生成 =====
+function createBeanChar(index, count, podW, podH) {
+  const step = (podW - 40) / count;
+  const cx = 24 + step * index + step / 2;
+  const size = Math.min(step * 0.7, 48);
+
+  const div = document.createElement('div');
+  div.className = 'bean-char';
+  div.style.cssText = `
+    left: ${cx - size/2}px;
+    bottom: ${podH - 4}px;
+    width: ${size}px;
+  `;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'speech-bubble';
+  bubble.style.fontSize = size < 40 ? '15.97px' : '20.33px';
+
+  const body = document.createElement('div');
+  body.className = 'bean-body';
+  body.style.width = size + 'px';
+  body.style.height = size + 'px';
+
+  const face = document.createElement('div');
+  face.className = 'bean-face';
+  face.style.fontSize = size * 0.5 + 'px';
+  face.textContent = FACES[Math.floor(Math.random() * FACES.length)];
+
+  body.appendChild(face);
+  if (count > 1) {
+    if (index === 0) bubble.classList.add('to-right');
+    else if (index === count - 1) bubble.classList.add('to-left');
+  }
+  div.appendChild(bubble);
+  div.appendChild(body);
+  return div;
+}
+
+// ===== タッチ・クリック処理 =====
+let pressTimer = null;
+let isPress = false;
+
+function handleTouch(e) {
+  e.preventDefault();
+  handleDown();
+}
+function handleMouse(e) {
+  handleDown();
+}
+
+function handleDown() {
+  if (podPhase === 'flying') return;
+  if (currentBeanIndex >= currentPodSize) return;
+
+  isPress = false;
+  pressTimer = setTimeout(() => {
+    isPress = true;
+    onPress();
+  }, 80);
+
+  document.ontouchend = document.onmouseup = () => {
+    clearTimeout(pressTimer);
+    document.ontouchend = document.onmouseup = null;
+    if (!isPress) onTap();
+  };
+}
+
+function onPress() {
+  // 長押し → 顔が出てきてしゃべる
+  if (podPhase === 'idle') {
+    podPhase = 'pressed';
+    const bc = beanElements[currentBeanIndex];
+    const bubble = bc.querySelector('.speech-bubble');
+    bubble.textContent = SPEECHES_PRESS[Math.floor(Math.random() * SPEECHES_PRESS.length)];
+
+    bc.style.opacity = '1';
+    bc.style.animation = 'peek-in 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards';
+
+    setTimeout(() => bubble.classList.add('show'), 200);
+  }
+}
+
+function onTap() {
+  // タップ
+  if (podPhase === 'idle') {
+    // まず顔を出す → 次のタップで飛ばす
+    podPhase = 'pressed';
+    const bc = beanElements[currentBeanIndex];
+    const bubble = bc.querySelector('.speech-bubble');
+    bubble.textContent = SPEECHES_PRESS[Math.floor(Math.random() * SPEECHES_PRESS.length)];
+    bc.style.opacity = '1';
+    bc.style.animation = 'peek-in 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards';
+    setTimeout(() => bubble.classList.add('show'), 200);
+
+    // 鞘を揺らす
+    podContainer.querySelector('svg').classList.add('pod-shake');
+    setTimeout(() => podContainer.querySelector('svg').classList.remove('pod-shake'), 400);
+
+  } else if (podPhase === 'pressed') {
+    // 飛ばす！
+    flyBean();
+  }
+}
+
+function flyBean() {
+  podPhase = 'flying';
+  const bc = beanElements[currentBeanIndex];
+  const bubble = bc.querySelector('.speech-bubble');
+
+  // セリフ変更
+  bubble.textContent = SPEECHES_FLICK[Math.floor(Math.random() * SPEECHES_FLICK.length)];
+  bubble.classList.add('show');
+
+  // ランダム方向に飛ばす
+  const angle = (Math.random() * 120 - 60) - 90; // 上方向中心
+  const dist = 600 + Math.random() * 300;
+  const rad = angle * Math.PI / 180;
+  const fx = Math.cos(rad) * dist + 'px';
+  const fy = Math.sin(rad) * dist + 'px';
+  const fr = (Math.random() * 720 - 360) + 'deg';
+
+  bc.style.setProperty('--fx', fx);
+  bc.style.setProperty('--fy', fy);
+  bc.style.setProperty('--fr', fr);
+  bc.style.animation = 'fly-out 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards';
+
+  setTimeout(() => {
+    bc.style.display = 'none';
+    currentBeanIndex++;
+    podPhase = 'idle';
+
+    if (currentBeanIndex >= currentPodSize) {
+      // 鞘終わり → 次へ
+      setTimeout(() => {
+        podsDone++;
+        nextPod();
+      }, 500);
+    }
+    updateCounter();
+  }, 700);
+}
+
+function updateCounter() {
+  const remaining = currentPodSize - currentBeanIndex;
+  counter.innerHTML = `
+    🌿 ${podsDone + 1} / ${totalPods} 鞘目<br>
+    🫘 残り ${remaining} 粒
+  `;
+}
+
+const FACE_IMAGES = [
+  'face/IMG_7819.PNG','face/IMG_7820.PNG','face/IMG_7822.PNG','face/IMG_7823.PNG',
+  'face/IMG_7824.PNG','face/IMG_7825.PNG','face/IMG_7826.PNG','face/IMG_7827.PNG',
+  'face/IMG_7828.PNG','face/IMG_7829.PNG'
+];
+
+function showCleared() {
+  clearCount++;
+  podContainer.innerHTML = '';
+  counter.innerHTML = '';
+
+  if (clearCount >= 3) {
+    cleared.innerHTML = `
+      <img src="clear.PNG" style="max-width:100%;max-height:70vh;border-radius:16px;display:block;margin:0 auto 16px;">
+      <button onclick="resetGame()">もう一度</button>
+    `;
+  } else {
+    const randomFace = FACE_IMAGES[Math.floor(Math.random() * FACE_IMAGES.length)];
+    cleared.innerHTML = `
+      <img src="${randomFace}" style="max-width:100%;max-height:60vh;border-radius:16px;display:block;margin:0 auto 16px;">
+      <button onclick="resetGame()">もう一度</button>
+    `;
+  }
+
+  cleared.classList.add('show');
+}
+
+// ===== スタート =====
+resetGame();
+</script>
+</body>
+</html>
