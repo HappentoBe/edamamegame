@@ -88,15 +88,15 @@ body {
   border: 3px solid #7db833;
   border-radius: 18px;
   padding: clamp(8px, 3vw, 11px) clamp(11px, 4.5vw, 17px);
-  font-size: clamp(9px, 3.5vw, 13px);
+  font-size: clamp(13.07px, 5.08vw, 18.88px);
   font-weight: bold;
   color: #4a7a10;
   writing-mode: horizontal-tb !important;
   -webkit-writing-mode: horizontal-tb !important;
   text-orientation: mixed !important;
   white-space: normal;
-  width: clamp(109px, 30vw, 182px);
-  max-width: clamp(109px, 30vw, 182px);
+  width: clamp(187px, 51.5vw, 312px);
+  max-width: clamp(187px, 51.5vw, 312px);
   text-align: center;
   line-height: 1.6;
   opacity: 0;
@@ -120,6 +120,27 @@ body {
   opacity:1;
   transform:translateX(-50%) scale(1);
 }
+/* 左豆：吹き出しを右へ */
+.speech-bubble.to-right {
+  left: 0;
+  transform: translateX(0) scale(0.75);
+}
+.speech-bubble.to-right.show {
+  transform: translateX(0) scale(1);
+}
+.speech-bubble.to-right::after { left: 15%; }
+.speech-bubble.to-right::before { left: 15%; }
+/* 右豆：吹き出しを左へ */
+.speech-bubble.to-left {
+  left: auto;
+  right: 0;
+  transform: translateX(0) scale(0.75);
+}
+.speech-bubble.to-left.show {
+  transform: translateX(0) scale(1);
+}
+.speech-bubble.to-left::after { left: 85%; }
+.speech-bubble.to-left::before { left: 85%; }
 
 /* 鞘 */
 #pod-wrap {
@@ -408,18 +429,10 @@ function sfxFanfare() {
 }
 
 // ================================================================
-// セリフ表示ユーティリティ — 7文字ごとに改行を挿入する
+// セリフ表示ユーティリティ — 日本語の区切りで自然に改行
 // ================================================================
 function formatSpeech(text) {
-  const COLS = 10;
-  return text.split('\n').map(line => {
-    let result = '';
-    for (let i = 0; i < line.length; i += COLS) {
-      if (i > 0) result += '<br>';
-      result += line.slice(i, i + COLS);
-    }
-    return result;
-  }).join('<br>');
+  return text.replace(/\n/g, '<br>');
 }
 
 // ================================================================
@@ -616,6 +629,10 @@ function makeBeanChar(size, faceIdx, beanIndex) {
   bubble.style.setProperty('writing-mode', 'horizontal-tb', 'important');
   bubble.style.setProperty('-webkit-writing-mode', 'horizontal-tb', 'important');
   bubble.style.setProperty('text-orientation', 'mixed', 'important');
+  if (POD_SIZE > 1) {
+    if (beanIndex === 0) bubble.classList.add('to-right');
+    else if (beanIndex === POD_SIZE - 1) bubble.classList.add('to-left');
+  }
 
   const canvas = document.createElement('canvas');
   // 3倍サイズ（canvas解像度も3倍）
@@ -730,7 +747,7 @@ function peekBeanAtIndex(index) {
   bubble.innerHTML = formatSpeech(SPEECHES_PRESS[Math.floor(Math.random() * SPEECHES_PRESS.length)]);
   setTimeout(() => {
     bubble.classList.add('show');
-    setTimeout(() => bubble.classList.remove('show'), 3360);
+    setTimeout(() => bubble.classList.remove('show'), 4032);
   }, 150);
 }
 
