@@ -257,7 +257,8 @@ body {
   transition: opacity 0.6s;
 }
 #cleared.show { opacity:1; pointer-events:all; }
-.cl-icon  { font-size:72px; margin-bottom:10px; }
+.cl-icon  { margin-bottom:10px; }
+.cl-icon img { width: 160px; height: 160px; object-fit: cover; border-radius: 50%; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
 .cl-title { font-size:30px; font-weight:bold; color:#5c9c2e; margin-bottom:8px; }
 .cl-sub   { font-size:15px; color:#aaa; margin-bottom:40px; }
 #retry-btn {
@@ -282,13 +283,24 @@ body {
 .lang-btn {
   background: none;
   border: 2px solid #ddd;
-  border-radius: 20px;
+  border-radius: 14px;
   padding: 4px 10px;
-  font-size: clamp(16px, 5vw, 22px);
   cursor: pointer;
   opacity: 0.4;
   transition: opacity 0.2s, border-color 0.2s;
   font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.lang-btn .flag {
+  font-size: clamp(24px, 7.5vw, 33px);
+  line-height: 1;
+}
+.lang-btn .label {
+  font-size: clamp(13.5px, 3.75vw, 16.5px);
+  color: #666;
   line-height: 1;
 }
 .lang-btn.active {
@@ -300,8 +312,8 @@ body {
 <body>
 
 <div id="lang-switch">
-  <button class="lang-btn active" id="btn-ja" onclick="setLang('ja')">🇯🇵 Japanese</button>
-  <button class="lang-btn" id="btn-en" onclick="setLang('en')">🇺🇸 English</button>
+  <button class="lang-btn active" id="btn-ja" onclick="setLang('ja')"><span class="flag">🇯🇵</span><span class="label">Japanese</span></button>
+  <button class="lang-btn" id="btn-en" onclick="setLang('en')"><span class="flag">🇺🇸</span><span class="label">English</span></button>
 </div>
 
 <div id="game">
@@ -319,7 +331,7 @@ body {
   </div>
 
   <div id="cleared">
-    <div class="cl-icon">🌿</div>
+    <div class="cl-icon"><img id="cl-icon-img" src="" alt=""></div>
     <div class="cl-title">全クリア！</div>
     <div class="cl-sub">全部の枝豆がとびだした！</div>
     <button id="retry-btn" onclick="resetGame()">もう一度</button>
@@ -1118,11 +1130,14 @@ let gamePhase      = 'idle';
 //   'swipeable'    : 全豆飛んだ後のスワイプ待ち
 //   'transitioning': 鞘のスライドアニメ中
 let pressTimer     = null;
+let totalClears    = 0;
+let faceInterval   = null;
 
 // ================================================================
 // 初期化
 // ================================================================
 function resetGame() {
+  clearFaceInterval();
   document.getElementById('cleared').classList.remove('show');
   podsDone = 0;
   loadPod(true);
@@ -1383,7 +1398,8 @@ function launchPod(dir) {
 
     if (podsDone >= TOTAL_PODS) {
       sfxFanfare();
-      setTimeout(() => document.getElementById('cleared').classList.add('show'), 200);
+      totalClears++;
+      showClearScreen();
       return;
     }
 
@@ -1394,6 +1410,38 @@ function launchPod(dir) {
       area.addEventListener('animationend', () => { area.className = ''; }, { once:true });
     });
   }, { once:true });
+}
+
+// ================================================================
+// クリア画面表示
+// ================================================================
+function showClearScreen() {
+  const img = document.getElementById('cl-icon-img');
+
+  if (totalClears % 3 === 0) {
+    // 3回ごとにclear.png
+    clearFaceInterval();
+    img.src = 'clear.png';
+    img.style.borderRadius = '0';
+    img.style.boxShadow = 'none';
+  } else {
+    // それ以外はfaceフォルダの画像がランダムに切り替わる
+    img.style.borderRadius = '50%';
+    img.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+    const faces = FACE_FILES.map(f => f.split('?')[0]);
+    let idx = Math.floor(Math.random() * faces.length);
+    img.src = faces[idx];
+    faceInterval = setInterval(() => {
+      idx = (idx + 1 + Math.floor(Math.random() * (faces.length - 1))) % faces.length;
+      img.src = faces[idx];
+    }, 150);
+  }
+
+  setTimeout(() => document.getElementById('cleared').classList.add('show'), 200);
+}
+
+function clearFaceInterval() {
+  if (faceInterval) { clearInterval(faceInterval); faceInterval = null; }
 }
 
 // ================================================================
