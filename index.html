@@ -524,25 +524,13 @@ function sfxFanfare() {
 }
 
 // ================================================================
-// 音声再生（日本語: mp3 / 英語: Web Speech API）
+// 音声再生（日本語/英語ともにmp3）
 // ================================================================
 function playAudio(index) {
   const num = String(index + 1).padStart(3, '0');
-  const audio = new Audio(`audio/${num}.mp3`);
+  const folder = currentLang === 'ja' ? 'audio' : 'audio_en';
+  const audio = new Audio(`${folder}/${num}.mp3`);
   audio.play().catch(() => {});
-}
-
-function speakEN(text) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text.replace(/\n/g, ' '));
-  utt.lang = 'en-US';
-  const voices = window.speechSynthesis.getVoices();
-  const voice = voices.find(v => v.name === 'Google US English')
-             || voices.find(v => v.lang === 'en-US')
-             || null;
-  if (voice) utt.voice = voice;
-  window.speechSynthesis.speak(utt);
 }
 
 // ================================================================
@@ -1412,11 +1400,7 @@ function peekBeanAtIndex(index) {
   bubble.innerHTML = formatSpeech(speeches[pendingIndex]);
   setTimeout(() => {
     bubble.classList.add('show');
-    if (currentLang === 'ja') {
-      playAudio(pendingIndex);
-    } else {
-      speakEN(speeches[pendingIndex]);
-    }
+    playAudio(pendingIndex);
     setTimeout(() => bubble.classList.remove('show'), 8064);
   }, 150);
 }
